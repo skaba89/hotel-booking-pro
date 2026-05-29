@@ -1,0 +1,52 @@
+name: CI
+
+# Validation non-bloquante du build : verifie que l'API, le frontend et le
+# package partage compilent, et que le lint passe. N'execute aucun deploiement
+# et ne touche a aucune base de donnees.
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+# Annule les runs precedents encore en cours sur la meme ref (gain de temps/CI).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Lint & Build
+    runs-on: ubuntu-latest
+
+    # Variables factices : suffisent pour que `next build` / `nest build`
+    # compilent sans secret reel. Aucune connexion DB n'est ouverte au build.
+    env:
+      DATABASE_URL: postgresql://user:pass@localhost:5432/db
+      JWT_SECRET: ci_dummy_jwt_secret_at_least_32_chars_long_xx
+      JWT_REFRESH_SECRET: ci_dummy_refresh_secret_at_least_32_chars_xx
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      NEXT_TELEMETRY_DISABLED: "1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build (shared + api + web)
+        run: npm run build

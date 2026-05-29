@@ -93,6 +93,18 @@ export const PROVIDERS: ProviderConfig[] = [
     kind: 'openai',
     baseUrl: 'https://openrouter.ai/api/v1',
   },
+  {
+    // GitHub Models: GitHub's free, OpenAI-compatible inference API (the
+    // actionable "Copilot via GitHub" option). Authenticated with a GitHub
+    // personal access token that has the "models" permission.
+    id: 'github',
+    label: 'GitHub Models',
+    apiKeyEnv: 'GITHUB_MODELS_TOKEN',
+    modelEnv: 'GITHUB_MODELS_MODEL',
+    defaultModel: 'gpt-4o-mini',
+    kind: 'openai',
+    baseUrl: 'https://models.inference.ai.azure.com',
+  },
 ];
 
 const logger = new Logger('AiProviders');

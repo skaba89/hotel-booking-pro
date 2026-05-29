@@ -83,6 +83,16 @@ export class BookingsService {
     const bookingReference = generateBookingReference();
 
     const result = await this.prisma.$transaction(async (tx) => {
+      // Verrou de ligne sur la chambre : sérialise les créations de réservation
+      // concurrentes pour une MÊME chambre. Sans ce verrou, sous l'isolation
+      // Read Committed (défaut Postgres), deux transactions simultanées peuvent
+      // toutes deux passer le contrôle de chevauchement ci-dessous (aucune ne
+      // voit l'insertion non-commitée de l'autre) et créer un double-booking.
+      // La 2e transaction attend ici que la 1re commit, puis voit la réservation
+      // et lève le conflit. Les autres chambres ne sont pas impactées (verrou
+      // par ligne). roomId existe déjà (findById plus haut le garantit).
+      await tx.$queryRaw`SELECT id FROM rooms WHERE id = ${dto.roomId} FOR UPDATE`;
+
       const overlapping = await tx.booking.findFirst({
         where: {
           roomId: dto.roomId,

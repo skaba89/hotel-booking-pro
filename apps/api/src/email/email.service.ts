@@ -62,11 +62,26 @@ export class EmailService {
       return;
     }
 
-    try {
-      await this.resend.emails.send({ from: this.from, to, subject, html });
-      this.logger.log(`Email envoyé: ${subject} -> ${to}`);
-    } catch (error) {
-      this.logger.error(`Erreur envoi email: ${subject}`, error);
+    // Retry avec back-off sur erreur transitoire. Le SDK Resend ne lève pas
+    // d'exception sur erreur API : il renvoie { error }. On le traite comme un
+    // échec pour pouvoir réessayer. Cette méthode ne propage jamais l'erreur
+    // (contrat "fire-and-forget" des appelants) ; en cas d'échec final, on log.
+    const maxAttempts = 3;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const { error } = await this.resend.emails.send({ from: this.from, to, subject, html });
+        if (error) throw error;
+        this.logger.log(`Email envoyé: ${subject} -> ${to}`);
+        return;
+      } catch (error) {
+        if (attempt === maxAttempts) {
+          this.logger.error(`Échec envoi email après ${maxAttempts} tentatives: ${subject} -> ${to}`, error as any);
+          return;
+        }
+        const delayMs = 500 * 2 ** (attempt - 1); // 500ms, puis 1000ms
+        this.logger.warn(`Tentative ${attempt}/${maxAttempts} échouée pour "${subject}", nouvel essai dans ${delayMs}ms`);
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
     }
   }
 

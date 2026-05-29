@@ -17,7 +17,8 @@ async function bootstrap() {
   });
 
   const config = app.get(ConfigService);
-  const port = config.get<number>('API_PORT', 4005);
+  // Render (and most PaaS) inject the port via process.env.PORT; fall back to API_PORT for local dev.
+  const port = parseInt(process.env.PORT ?? '', 10) || config.get<number>('API_PORT', 4005);
   const isProduction = config.get<string>('NODE_ENV') === 'production';
 
   // ---- Environment validation ----
@@ -113,7 +114,7 @@ async function bootstrap() {
   // ---- Graceful shutdown ----
   app.enableShutdownHooks();
 
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
   logger.log(`Hotel Booking API running on port ${port} [${isProduction ? 'PRODUCTION' : 'DEVELOPMENT'}]`);
   logger.log(`CORS allowed: ${[...new Set(corsOrigins)].join(', ')}`);
 }

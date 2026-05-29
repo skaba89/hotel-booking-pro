@@ -21,6 +21,8 @@ RUN npm run build
 FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+# Default port for local docker runs; Render (and other PaaS) override PORT at runtime.
+ENV PORT=4005
 
 # OpenSSL is required by Prisma engine binaries
 RUN apk add --no-cache openssl
@@ -41,9 +43,10 @@ RUN addgroup --system --gid 1001 nodejs && \
     chown -R nestjs:nodejs /app/node_modules/@prisma
 USER nestjs
 
-EXPOSE 4000
+EXPOSE 4005
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:4000/api/health || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider "http://127.0.0.1:${PORT}/api/health" || exit 1
 
-CMD ["sh", "-c", "npx prisma db push --skip-generate && node dist/src/main.js"]
+# Apply pending DB migrations (no-op if already applied), then start the server.
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main.js"]

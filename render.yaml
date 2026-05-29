@@ -1,0 +1,42 @@
+# ===========================================
+# Render Blueprint - Hotel SETIFANA API (NestJS)
+# Deploys apps/api as a Docker web service connected to Neon PostgreSQL.
+# In Render: New + > Blueprint > connect this repo. Then fill the
+# secret env vars (DATABASE_URL, JWT_SECRET, JWT_REFRESH_SECRET) in the dashboard.
+# ===========================================
+
+services:
+  - type: web
+    name: hotel-setifana-api
+    runtime: docker
+    repo: https://github.com/skaba89/hotel-booking-pro
+    branch: main
+    region: frankfurt
+    plan: free
+    # Build the API image; context is the repo root so the Dockerfile can COPY apps/api and prisma.
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Allows the deployed frontend origin through CORS.
+      - key: NEXT_PUBLIC_SITE_URL
+        value: https://hotel-setifana-conakry.netlify.app
+      # ---- Secrets: set these in the Render dashboard (not stored in git) ----
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      # ---- Optional integrations (leave unset to disable; API still runs) ----
+      - key: JWT_EXPIRATION
+        value: 15m
+      - key: JWT_REFRESH_EXPIRATION
+        value: 7d
+      - key: HOTEL_CURRENCY
+        value: GNF
+      - key: HOTEL_TAX_RATE
+        value: "18"

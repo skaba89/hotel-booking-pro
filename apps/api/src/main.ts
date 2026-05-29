@@ -36,6 +36,19 @@ async function bootstrap() {
     process.exit(1);
   }
 
+  // Non-fatal: a distinct, strong refresh secret limits blast radius if one
+  // secret leaks. We only WARN (never exit) so an existing prod where both
+  // secrets are identical keeps running until the operator rotates it.
+  const refreshSecret = config.get<string>('JWT_REFRESH_SECRET', '');
+  if (isProduction) {
+    if (refreshSecret && refreshSecret === jwtSecret) {
+      logger.warn('JWT_REFRESH_SECRET is identical to JWT_SECRET — set a distinct value for better security.');
+    }
+    if (refreshSecret && refreshSecret.length < 32) {
+      logger.warn('JWT_REFRESH_SECRET is short (<32 chars) — use a strong random key.');
+    }
+  }
+
   // Warn about unconfigured optional services
   if (!config.get('STRIPE_SECRET_KEY') || config.get('STRIPE_SECRET_KEY') === 'sk_test_...') {
     logger.warn('Stripe not configured - card payments will be disabled');

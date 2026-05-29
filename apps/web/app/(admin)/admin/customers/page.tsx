@@ -8,20 +8,21 @@ import { Card, CardContent } from '@/components/ui/card';
 import { AdminLayout } from '@/components/admin/admin-layout';
 import { api } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
+import type { CustomerDto, BookingDto, PaginatedResponse } from '@hotel-booking/shared';
 
 export default function AdminCustomersPage() {
-  const [customers, setCustomers] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<CustomerDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [filteredCustomers, setFilteredCustomers] = useState<any[]>([]);
-  const [viewCustomer, setViewCustomer] = useState<any>(null);
-  const [customerBookings, setCustomerBookings] = useState<any[]>([]);
+  const [filteredCustomers, setFilteredCustomers] = useState<CustomerDto[]>([]);
+  const [viewCustomer, setViewCustomer] = useState<CustomerDto | null>(null);
+  const [customerBookings, setCustomerBookings] = useState<BookingDto[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
 
   const loadCustomers = async () => {
     setLoading(true);
     try {
-      const res = await api.get<any>('/admin/customers?limit=100');
+      const res = await api.get<PaginatedResponse<CustomerDto> | CustomerDto[]>('/admin/customers?limit=100');
       const list = Array.isArray(res) ? res : res?.data || [];
       setCustomers(list);
       setFilteredCustomers(list);
@@ -59,11 +60,11 @@ export default function AdminCustomersPage() {
     handleSearch();
   }, [search, customers]);
 
-  const openCustomerDetail = async (customer: any) => {
+  const openCustomerDetail = async (customer: CustomerDto) => {
     setViewCustomer(customer);
     setLoadingBookings(true);
     try {
-      const data = await api.get<any>(`/admin/bookings?search=${encodeURIComponent(customer.email)}&limit=20`);
+      const data = await api.get<PaginatedResponse<BookingDto>>(`/admin/bookings?search=${encodeURIComponent(customer.email || '')}&limit=20`);
       setCustomerBookings(data?.data || []);
     } catch {
       setCustomerBookings([]);
@@ -266,7 +267,7 @@ export default function AdminCustomersPage() {
                   <p className="text-sm text-gray-500 bg-gray-50 p-3 rounded-lg">Aucune reservation trouvee</p>
                 ) : (
                   <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                    {customerBookings.map((b: any) => (
+                    {customerBookings.map((b) => (
                       <div key={b.id} className="p-3 bg-gray-50 rounded-lg flex items-center justify-between">
                         <div>
                           <p className="text-sm font-medium">{b.room?.name || 'Chambre'}</p>

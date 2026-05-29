@@ -191,3 +191,12 @@ export interface SettingDto {
   type: string;
   description?: string;
 }
+
+export interface CustomerDto {
+  id: string;
+  fullName: string;
+  email: string | null;
+  phone: string | null;
+  country: string | null;
+  createdAt: string;
+}

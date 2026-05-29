@@ -6,6 +6,10 @@ const nextConfig = {
   // Note: 'standalone' output removed for Netlify compatibility
   // Re-add output: 'standalone' if switching to Docker deployment
 
+  // Le package partagé est publié en TS source (main = src/index.ts) ; Next doit
+  // le transpiler pour pouvoir l'importer depuis le frontend.
+  transpilePackages: ['@hotel-booking/shared'],
+
   allowedDevOrigins: ['http://192.168.1.21:3000', 'http://localhost:3000'],
 
   images: {

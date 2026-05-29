@@ -1,0 +1,29 @@
+name: Keep API warm
+
+# Le tier gratuit Render endort le service apres ~15 min d'inactivite, ce qui
+# inflige un demarrage a froid de 30-60s au premier visiteur. On ping le
+# health check regulierement pour le maintenir eveille.
+#
+# Note : les crons GitHub Actions ne sont pas garantis a la minute pres (delais
+# possibles en periode de charge). */10 vise un intervalle < 15 min en pratique.
+# Pour une garantie stricte, un monitor externe (UptimeRobot, cron-job.org) est
+# plus fiable — ce workflow reste un filet "sans infra externe".
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch: {} # permet un declenchement manuel
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping API health
+        run: |
+          for attempt in 1 2 3; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 90 \
+              https://hotel-setifana-api.onrender.com/api/health || echo 000)
+            echo "Tentative $attempt -> HTTP $code"
+            if [ "$code" = "200" ]; then exit 0; fi
+            sleep 10
+          done
+          echo "API n'a pas repondu 200 (probablement un cold start en cours) — non bloquant."

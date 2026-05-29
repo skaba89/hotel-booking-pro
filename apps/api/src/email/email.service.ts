@@ -1,6 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Resend } from 'resend';
+import { PdfService } from '../pdf/pdf.service';
+
+interface EmailAttachment {
+  filename: string;
+  content: Buffer;
+}
 
 @Injectable()
 export class EmailService {
@@ -9,7 +15,10 @@ export class EmailService {
   private from: string;
   private adminEmail: string;
 
-  constructor(private config: ConfigService) {
+  constructor(
+    private config: ConfigService,
+    private pdf: PdfService,
+  ) {
     const apiKey = this.config.get<string>('RESEND_API_KEY');
     if (apiKey) {
       this.resend = new Resend(apiKey);
@@ -20,7 +29,67 @@ export class EmailService {
 
   async sendBookingConfirmation(booking: any) {
     const html = this.buildBookingEmail(booking, 'Confirmation de réservation');
-    await this.send(booking.customerEmail, `Confirmation - Réservation ${booking.bookingReference}`, html);
+    const attachments = await this.buildBookingAttachments(booking);
+    await this.send(
+      booking.customerEmail,
+      `Confirmation - Réservation ${booking.bookingReference}`,
+      html,
+      attachments,
+    );
+  }
+
+  /**
+   * Génère le reçu PDF + un événement calendrier (.ics) pour le séjour.
+   * Best-effort : si la génération échoue, on renvoie ce qui a réussi (ou rien)
+   * afin de ne jamais bloquer l'envoi de l'email de confirmation.
+   */
+  private async buildBookingAttachments(booking: any): Promise<EmailAttachment[]> {
+    const attachments: EmailAttachment[] = [];
+    try {
+      const pdf = await this.pdf.generateBookingReceipt(booking);
+      attachments.push({ filename: `reservation-${booking.bookingReference}.pdf`, content: pdf });
+    } catch (error) {
+      this.logger.warn(`Génération PDF échouée pour ${booking.bookingReference}: ${(error as Error).message}`);
+    }
+    try {
+      const ics = this.buildCalendarEvent(booking);
+      attachments.push({ filename: `reservation-${booking.bookingReference}.ics`, content: Buffer.from(ics, 'utf-8') });
+    } catch (error) {
+      this.logger.warn(`Génération .ics échouée pour ${booking.bookingReference}: ${(error as Error).message}`);
+    }
+    return attachments;
+  }
+
+  /** Construit un événement iCalendar (RFC 5545) pour le séjour réservé. */
+  private buildCalendarEvent(booking: any): string {
+    const toIcsDate = (d: Date | string) => {
+      const date = new Date(d);
+      const y = date.getUTCFullYear();
+      const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(date.getUTCDate()).padStart(2, '0');
+      return `${y}${m}${day}`;
+    };
+    const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+    const escape = (s: string) => String(s ?? '').replace(/([,;\\])/g, '\\$1').replace(/\n/g, '\\n');
+    const lines = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//Hotel SETIFANA//Booking//FR',
+      'CALSCALE:GREGORIAN',
+      'METHOD:PUBLISH',
+      'BEGIN:VEVENT',
+      `UID:${booking.bookingReference}@setifana`,
+      `DTSTAMP:${stamp}`,
+      `DTSTART;VALUE=DATE:${toIcsDate(booking.checkInDate)}`,
+      `DTEND;VALUE=DATE:${toIcsDate(booking.checkOutDate)}`,
+      `SUMMARY:${escape(`Séjour Hotel SETIFANA - ${booking.room?.name || 'Chambre'}`)}`,
+      `DESCRIPTION:${escape(`Réservation ${booking.bookingReference} - ${booking.nights} nuit(s)`)}`,
+      'LOCATION:Hotel SETIFANA\\, Conakry\\, Guinée',
+      'STATUS:CONFIRMED',
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ];
+    return lines.join('\r\n');
   }
 
   async sendPaymentConfirmation(booking: any) {
@@ -56,7 +125,7 @@ export class EmailService {
     await this.send(this.adminEmail, `Paiement reçu - ${booking.bookingReference}`, html);
   }
 
-  private async send(to: string, subject: string, html: string) {
+  private async send(to: string, subject: string, html: string, attachments?: EmailAttachment[]) {
     if (!this.resend) {
       this.logger.warn(`Email non envoyé (Resend non configuré): ${subject} -> ${to}`);
       return;
@@ -69,7 +138,13 @@ export class EmailService {
     const maxAttempts = 3;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        const { error } = await this.resend.emails.send({ from: this.from, to, subject, html });
+        const { error } = await this.resend.emails.send({
+          from: this.from,
+          to,
+          subject,
+          html,
+          ...(attachments && attachments.length > 0 ? { attachments } : {}),
+        });
         if (error) throw error;
         this.logger.log(`Email envoyé: ${subject} -> ${to}`);
         return;

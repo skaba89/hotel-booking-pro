@@ -60,6 +60,24 @@ enum ContactStatus {
   ARCHIVED
 }
 
+enum StaffDepartment {
+  HOUSEKEEPING
+  RECEPTION
+  RESTAURANT
+  KITCHEN
+  MAINTENANCE
+  SECURITY
+  MANAGEMENT
+  OTHER
+}
+
+enum ShiftStatus {
+  SCHEDULED
+  COMPLETED
+  ABSENT
+  CANCELLED
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -287,6 +305,45 @@ model PriceRule {
 
   @@index([roomId, isActive])
   @@map("price_rules")
+}
+
+model StaffMember {
+  id         String          @id @default(cuid())
+  fullName   String          @map("full_name")
+  department StaffDepartment @default(HOUSEKEEPING)
+  position   String?
+  phone      String?
+  email      String?
+  isActive   Boolean         @default(true) @map("is_active")
+  hireDate   DateTime?       @map("hire_date") @db.Date
+  notes      String?         @db.Text
+  createdAt  DateTime        @default(now()) @map("created_at")
+  updatedAt  DateTime        @updatedAt @map("updated_at")
+
+  shifts StaffShift[]
+
+  @@index([department])
+  @@index([isActive])
+  @@map("staff_members")
+}
+
+model StaffShift {
+  id        String      @id @default(cuid())
+  staffId   String      @map("staff_id")
+  date      DateTime    @db.Date
+  startTime String      @map("start_time")
+  endTime   String      @map("end_time")
+  area      String?
+  status    ShiftStatus @default(SCHEDULED)
+  notes     String?     @db.Text
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+
+  staff StaffMember @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([date])
+  @@index([staffId, date])
+  @@map("staff_shifts")
 }
 
 model AuditLog {

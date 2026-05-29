@@ -19,6 +19,7 @@ import {
   Bell,
   ChevronDown,
   BarChart3,
+  UserCog,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useTheme } from '@/lib/theme-provider';
@@ -29,6 +30,7 @@ const navItems = [
   { href: '/admin/rooms', label: 'Chambres', icon: BedDouble },
   { href: '/admin/payments', label: 'Paiements', icon: CreditCard },
   { href: '/admin/customers', label: 'Clients', icon: Users },
+  { href: '/admin/staff', label: 'Personnel', icon: UserCog },
   { href: '/admin/services', label: 'Services', icon: ConciergeBell },
   { href: '/admin/reviews', label: 'Avis', icon: Star },
   { href: '/admin/contact-messages', label: 'Messages', icon: MessageSquare },

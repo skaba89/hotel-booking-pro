@@ -18,6 +18,7 @@ import { EmailModule } from './email/email.module';
 import { PdfModule } from './pdf/pdf.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { ChatModule } from './chat/chat.module';
+import { StaffModule } from './staff/staff.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { ChatModule } from './chat/chat.module';
     PdfModule,
     WebhooksModule,
     ChatModule,
+    StaffModule,
   ],
   providers: [
     {

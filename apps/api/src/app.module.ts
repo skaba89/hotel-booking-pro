@@ -17,6 +17,7 @@ import { AdminModule } from './admin/admin.module';
 import { EmailModule } from './email/email.module';
 import { PdfModule } from './pdf/pdf.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
+import { ChatModule } from './chat/chat.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     EmailModule,
     PdfModule,
     WebhooksModule,
+    ChatModule,
   ],
   providers: [
     {

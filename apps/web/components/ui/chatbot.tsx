@@ -206,33 +206,62 @@ export function Chatbot() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const sendMessage = (text: string) => {
-    if (!text.trim()) return;
+  const sendMessage = async (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
 
     const userMsg: Message = {
       id: Date.now().toString(),
-      text: text.trim(),
+      text: trimmed,
       sender: 'user',
       timestamp: new Date(),
     };
+
+    // Build the conversation history to send to the AI. Drop the leading
+    // assistant welcome turn(s) so the sequence starts with a user message
+    // (required by some providers, e.g. Anthropic), keep the last 10 turns,
+    // and cap each message length to satisfy the API DTO.
+    let turns = [...messages, userMsg].map((m) => ({
+      role: m.sender === 'user' ? ('user' as const) : ('assistant' as const),
+      content: m.text.slice(0, 2000),
+    }));
+    const firstUser = turns.findIndex((t) => t.role === 'user');
+    turns = (firstUser >= 0 ? turns.slice(firstUser) : turns).slice(-10);
 
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
     setIsTyping(true);
 
-    // Simulate typing delay
-    setTimeout(() => {
-      const response = findBestResponse(text);
-      const botMsg: Message = {
-        id: (Date.now() + 1).toString(),
-        text: response.answer,
-        sender: 'bot',
-        timestamp: new Date(),
-        quickReplies: response.quickReplies,
-      };
-      setMessages((prev) => [...prev, botMsg]);
-      setIsTyping(false);
-    }, 800 + Math.random() * 700);
+    // The static FAQ is always our offline/fallback brain; suggested quick
+    // replies come from it so the UX stays consistent even with AI answers.
+    const fallback = findBestResponse(trimmed);
+    let answer = '';
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: turns }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (typeof data?.reply === 'string' && data.reply.trim()) {
+          answer = data.reply.trim();
+        }
+      }
+    } catch {
+      // network error -> fall back to FAQ below
+    }
+    if (!answer) answer = fallback.answer;
+
+    const botMsg: Message = {
+      id: (Date.now() + 1).toString(),
+      text: answer,
+      sender: 'bot',
+      timestamp: new Date(),
+      quickReplies: fallback.quickReplies,
+    };
+    setMessages((prev) => [...prev, botMsg]);
+    setIsTyping(false);
   };
 
   const handleSubmit = (e: React.FormEvent) => {

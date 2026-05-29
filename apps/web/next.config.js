@@ -9,6 +9,10 @@ const nextConfig = {
   allowedDevOrigins: ['http://192.168.1.21:3000', 'http://localhost:3000'],
 
   images: {
+    // Netlify static (--no-build) deploys don't wire up the Next image
+    // optimizer, so /_next/image returns 400 and next/image assets (e.g. the
+    // chatbot avatar) render broken. Serve images as-is to fix display.
+    unoptimized: true,
     remotePatterns: [
       { protocol: 'https', hostname: '**' },
       { protocol: 'http', hostname: '192.168.1.21' },

@@ -40,3 +40,25 @@ services:
         value: GNF
       - key: HOTEL_TAX_RATE
         value: "18"
+      # ---- Chatbot AI (multi-provider) ----
+      # Order in which the chatbot tries providers (cascading fallback to the
+      # next one, then to the built-in static FAQ). Non-secret.
+      - key: AI_PROVIDER_ORDER
+        value: glm,groq,openai,claude,gemini,qwen,openrouter
+      # API keys are OPTIONAL secrets: add the ones you have in the Render
+      # dashboard (Environment tab). The chatbot enables a provider only when
+      # its key is present; with none set it stays on the static FAQ.
+      - key: GLM_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: QWEN_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false

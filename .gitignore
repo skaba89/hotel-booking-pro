@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.next/
+.env
+.env.local
+.env.production
+.env.staging
+*.log
+.DS_Store
+uploads/
+coverage/
+.turbo/
+*.pem
+*.key

@@ -1,0 +1,38 @@
+# Usage: docker compose -f docker-compose.dev.yml up -d
+# Only starts database services - run API and Web with npm run dev
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: hotel-booking-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: hotel_booking_pro
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: hotel-booking-redis
+    restart: unless-stopped
+    ports:
+      - '6380:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  redis_data:

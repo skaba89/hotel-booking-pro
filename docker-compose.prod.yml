@@ -1,0 +1,125 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: hotel-booking-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: hotel_booking_pro
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '10m'
+        max-file: '5'
+
+  redis:
+    image: redis:7-alpine
+    container_name: hotel-booking-redis
+    restart: always
+    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: hotel-booking-api
+    restart: always
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/hotel_booking_pro?schema=public
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: production
+      API_PORT: '4000'
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env.production
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '10m'
+        max-file: '5'
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://api:4000
+    container_name: hotel-booking-web
+    restart: always
+    environment:
+      NEXT_PUBLIC_API_URL: http://api:4000
+      NODE_ENV: production
+    depends_on:
+      - api
+    env_file:
+      - .env.production
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '10m'
+        max-file: '5'
+
+  nginx:
+    image: nginx:alpine
+    container_name: hotel-booking-nginx
+    restart: always
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - api
+      - web
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://127.0.0.1/nginx-health']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '10m'
+        max-file: '5'
+
+  # One-shot: seed the database (run manually)
+  # Usage: docker compose -f docker-compose.prod.yml run --rm seed
+  seed:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: hotel-booking-seed
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/hotel_booking_pro?schema=public
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ['sh', '-c', 'npx prisma db seed']
+    profiles:
+      - setup
+
+volumes:
+  postgres_data:
+  redis_data:
+  uploads_data:

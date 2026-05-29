@@ -1,0 +1,63 @@
+# ===========================================
+# Netlify Configuration - Hotel SETIFANA
+# Frontend (Next.js) deployment
+# ===========================================
+
+[build]
+  # Build from root for npm workspaces monorepo
+  # Netlify installs deps from root, then builds the web app
+  command = "npm run build --workspace=apps/web"
+  # Publish directory relative to root
+  publish = "apps/web/.next"
+
+# Next.js plugin for full SSR/ISR/middleware support
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# Environment variables for build
+[build.environment]
+  NODE_VERSION = "18"
+  # API URL - configure in Netlify dashboard for production
+  # NEXT_PUBLIC_API_URL = "https://your-api-url.onrender.com"
+
+# ===========================================
+# API Proxy Redirects
+# Uncomment when your NestJS API is deployed
+# ===========================================
+
+# [[redirects]]
+#   from = "/api/*"
+#   to = "https://your-api-url.onrender.com/api/:splat"
+#   status = 200
+#   force = true
+
+# [[redirects]]
+#   from = "/uploads/*"
+#   to = "https://your-api-url.onrender.com/uploads/:splat"
+#   status = 200
+#   force = true
+
+# ===========================================
+# Security Headers
+# ===========================================
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(self)"
+    X-DNS-Prefetch-Control = "on"
+    Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"
+
+# Cache static assets aggressively
+[[headers]]
+  for = "/images/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/_next/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

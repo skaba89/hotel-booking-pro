@@ -1,0 +1,16 @@
+{
+  "name": "Hotel SETIFANA - Hotel de luxe a Conakry",
+  "short_name": "SETIFANA",
+  "description": "Reservez votre sejour a l'Hotel SETIFANA, hotel de luxe a Conakry, Guinee.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#071B33",
+  "icons": [
+    {
+      "src": "/images/hotel/hero-main.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg"
+    }
+  ]
+}

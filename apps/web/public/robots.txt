@@ -1,0 +1,9 @@
+# Hotel SETIFANA - robots.txt
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /payment/
+Disallow: /confirmation/
+
+Sitemap: https://setifana.com/sitemap.xml

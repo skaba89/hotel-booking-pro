@@ -1,0 +1,37 @@
+{
+  "name": "hotel-booking-pro",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Hotel Booking Pro - Complete hotel management platform for SETIFANA Conakry",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:api": "npm run dev --workspace=apps/api",
+    "dev:web": "npm run dev --workspace=apps/web",
+    "build": "npm run build --workspace=packages/shared && npm run build --workspace=apps/api && npm run build --workspace=apps/web",
+    "build:api": "npm run build --workspace=apps/api",
+    "build:web": "npm run build --workspace=apps/web",
+    "db:generate": "npx prisma generate",
+    "db:migrate": "npx prisma migrate dev",
+    "db:push": "npx prisma db push",
+    "db:seed": "npx ts-node prisma/seed.ts",
+    "db:studio": "npx prisma studio",
+    "lint": "npm run lint --workspaces --if-present",
+    "clean": "rimraf node_modules apps/*/node_modules packages/*/node_modules"
+  },
+  "prisma": {
+    "seed": "npx ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "rimraf": "^5.0.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "@nestjs/mapped-types": "^2.1.1"
+  }
+}

@@ -109,8 +109,59 @@ export default function RoomDetailPage() {
   const amenities = typeof room.amenities === 'string' ? JSON.parse(room.amenities) : room.amenities;
   const nights = checkIn && checkOut ? calculateNights(checkIn, checkOut) : 0;
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://hotel-setifana-conakry.netlify.app';
+  const roomImages: string[] = Array.isArray(room.images)
+    ? room.images
+    : typeof room.images === 'string'
+      ? (() => { try { return JSON.parse(room.images); } catch { return []; } })()
+      : [];
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'HotelRoom',
+    name: room.name,
+    description: room.description,
+    url: `${siteUrl}/rooms/${slug}`,
+    image: roomImages,
+    occupancy: {
+      '@type': 'QuantitativeValue',
+      maxValue: room.capacity,
+      unitText: 'person',
+    },
+    floorSize: {
+      '@type': 'QuantitativeValue',
+      value: Number(room.sizeM2),
+      unitCode: 'MTK',
+    },
+    bed: { '@type': 'BedDetails', typeOfBed: room.bedType },
+    amenityFeature: (amenities || []).map((a: string) => ({
+      '@type': 'LocationFeatureSpecification',
+      name: amenityLabels[a] || a.replace(/_/g, ' '),
+      value: true,
+    })),
+    containedInPlace: {
+      '@type': 'Hotel',
+      name: 'Hotel SETIFANA',
+      address: {
+        '@type': 'PostalAddress',
+        addressLocality: 'Conakry',
+        addressCountry: 'GN',
+      },
+    },
+    offers: {
+      '@type': 'Offer',
+      price: Number(room.pricePerNight),
+      priceCurrency: 'GNF',
+      availability: 'https://schema.org/InStock',
+      url: `${siteUrl}/rooms/${slug}`,
+    },
+  };
+
   return (
     <div className="min-h-screen pb-20 lg:pb-0">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {/* Header */}
       <section className="bg-primary py-8">
         <div className="container mx-auto px-4">

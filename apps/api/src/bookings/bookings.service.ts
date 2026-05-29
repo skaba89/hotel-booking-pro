@@ -5,7 +5,7 @@ import { RoomsService } from '../rooms/rooms.service';
 import { EmailService } from '../email/email.service';
 import { CreateBookingDto, QuoteDto, BookingQueryDto } from './bookings.dto';
 import { generateBookingReference, calculateNights } from '../common/utils';
-import { isValidTransition } from './booking-status';
+import { isValidTransition, transitionErrorMessage } from './booking-status';
 
 @Injectable()
 export class BookingsService {
@@ -211,9 +211,7 @@ export class BookingsService {
     if (!booking) throw new NotFoundException('Réservation non trouvée');
 
     if (!isValidTransition(booking.bookingStatus, status)) {
-      throw new BadRequestException(
-        `Transition invalide : ${booking.bookingStatus} → ${status}`,
-      );
+      throw new BadRequestException(transitionErrorMessage(booking.bookingStatus, status));
     }
 
     const data: any = { bookingStatus: status };

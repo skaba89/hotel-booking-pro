@@ -78,6 +78,11 @@ export default function AdminBookingsPage() {
       }
     } catch (err: any) {
       toast(err.message, 'error');
+      // Le statut a probablement change entre-temps (ex. confirmation
+      // automatique apres paiement). On rafraichit pour resynchroniser
+      // l'affichage et eviter de recliquer une action devenue invalide.
+      loadBookings();
+      if (viewBooking?.id === id) setViewBooking(null);
     } finally {
       setActionLoading('');
     }

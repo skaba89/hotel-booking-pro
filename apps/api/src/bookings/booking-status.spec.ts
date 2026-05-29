@@ -1,4 +1,4 @@
-import { isValidTransition, VALID_TRANSITIONS } from './booking-status';
+import { isValidTransition, transitionErrorMessage, VALID_TRANSITIONS } from './booking-status';
 
 describe('booking status machine', () => {
   describe('allowed transitions', () => {
@@ -44,6 +44,26 @@ describe('booking status machine', () => {
 
     it('rejects a no-op transition to the same status', () => {
       expect(isValidTransition('PENDING', 'PENDING')).toBe(false);
+    });
+  });
+
+  describe('transitionErrorMessage', () => {
+    it('explains a no-op transition (already in that status)', () => {
+      expect(transitionErrorMessage('CONFIRMED', 'CONFIRMED')).toBe(
+        'Cette réservation est déjà confirmée.',
+      );
+    });
+
+    it('explains that a terminal status cannot change', () => {
+      expect(transitionErrorMessage('CANCELLED', 'CONFIRMED')).toBe(
+        'Cette réservation est annulée : son statut ne peut plus être modifié.',
+      );
+    });
+
+    it('explains a disallowed transition between active states', () => {
+      expect(transitionErrorMessage('PENDING', 'COMPLETED')).toBe(
+        'Transition impossible : une réservation en attente ne peut pas passer à « terminée ».',
+      );
     });
   });
 });

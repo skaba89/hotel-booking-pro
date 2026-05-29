@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { randomUUID } from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto, RegisterDto } from './auth.dto';
@@ -64,22 +65,54 @@ export class AuthService {
   }
 
   async refreshToken(refreshToken: string) {
+    let payload: { sub: string; jti?: string };
+    try {
+      payload = this.jwt.verify(refreshToken, {
+        secret: this.config.get<string>('JWT_REFRESH_SECRET', 'dev-refresh-secret-change-in-production'),
+      });
+    } catch {
+      throw new UnauthorizedException('Token de rafraîchissement invalide');
+    }
+
+    // jti obligatoire : les anciens tokens stateless n'en ont pas -> rejet
+    // (cutover : reconnexion unique apres le deploiement).
+    if (!payload.jti) {
+      throw new UnauthorizedException('Session expirée, veuillez vous reconnecter');
+    }
+
+    // Le token doit correspondre a une ligne existante, non rotee ni expiree.
+    const stored = await this.prisma.refreshToken.findUnique({ where: { id: payload.jti } });
+    if (!stored || stored.expiresAt < new Date()) {
+      if (stored) {
+        await this.prisma.refreshToken.delete({ where: { id: payload.jti } }).catch(() => undefined);
+      }
+      throw new UnauthorizedException('Session expirée, veuillez vous reconnecter');
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
+    if (!user || !user.isActive) {
+      await this.prisma.refreshToken.delete({ where: { id: payload.jti } }).catch(() => undefined);
+      throw new UnauthorizedException('Token invalide');
+    }
+
+    // Rotation : on revoque l'ancien token (suppression) puis on en emet un nouveau.
+    await this.prisma.refreshToken.delete({ where: { id: payload.jti } }).catch(() => undefined);
+
+    return this.generateTokens(user.id, user.email, user.role);
+  }
+
+  /** Revoque le refresh token courant (logout). Best-effort : ne leve jamais. */
+  async revokeRefreshToken(refreshToken?: string) {
+    if (!refreshToken) return;
     try {
       const payload = this.jwt.verify(refreshToken, {
         secret: this.config.get<string>('JWT_REFRESH_SECRET', 'dev-refresh-secret-change-in-production'),
-      });
-
-      const user = await this.prisma.user.findUnique({
-        where: { id: payload.sub },
-      });
-
-      if (!user || !user.isActive) {
-        throw new UnauthorizedException('Token invalide');
+      }) as { jti?: string };
+      if (payload.jti) {
+        await this.prisma.refreshToken.delete({ where: { id: payload.jti } }).catch(() => undefined);
       }
-
-      return this.generateTokens(user.id, user.email, user.role);
     } catch {
-      throw new UnauthorizedException('Token de rafraîchissement invalide');
+      // Token invalide/expire : rien a revoquer.
     }
   }
 
@@ -118,14 +151,33 @@ export class AuthService {
     return user;
   }
 
-  private generateTokens(userId: string, email: string, role: string) {
+  private async generateTokens(userId: string, email: string, role: string) {
     const payload = { sub: userId, email, role };
 
     const accessToken = this.jwt.sign(payload);
-    const refreshToken = this.jwt.sign(payload, {
-      secret: this.config.get<string>('JWT_REFRESH_SECRET', 'dev-refresh-secret-change-in-production'),
-      expiresIn: this.config.get<string>('JWT_REFRESH_EXPIRATION', '7d'),
-    });
+
+    // jti unique embarque dans le refresh token + ligne correspondante en base.
+    const jti = randomUUID();
+    const refreshToken = this.jwt.sign(
+      { ...payload, jti },
+      {
+        secret: this.config.get<string>('JWT_REFRESH_SECRET', 'dev-refresh-secret-change-in-production'),
+        expiresIn: this.config.get<string>('JWT_REFRESH_EXPIRATION', '7d'),
+      },
+    );
+
+    // expiresAt derive du claim exp du token (cohérent avec sa vraie expiration).
+    const decoded = this.jwt.decode(refreshToken) as { exp?: number } | null;
+    const expiresAt = decoded?.exp
+      ? new Date(decoded.exp * 1000)
+      : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    await this.prisma.refreshToken.create({ data: { id: jti, userId, expiresAt } });
+
+    // Nettoyage opportuniste des tokens expires de cet utilisateur.
+    await this.prisma.refreshToken
+      .deleteMany({ where: { userId, expiresAt: { lt: new Date() } } })
+      .catch(() => undefined);
 
     return {
       accessToken,

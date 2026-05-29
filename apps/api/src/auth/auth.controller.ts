@@ -71,7 +71,8 @@ export class AuthController {
 
   @UseGuards(AuthGuard('jwt'))
   @Post('logout')
-  logout(@Res({ passthrough: true }) res: Response) {
+  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    await this.authService.revokeRefreshToken(req.cookies?.refresh_token as string);
     this.clearAuthCookies(res);
     return { message: 'Déconnexion réussie' };
   }

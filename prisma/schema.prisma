@@ -89,10 +89,28 @@ model User {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  customer  Customer?
-  auditLogs AuditLog[]
+  customer      Customer?
+  auditLogs     AuditLog[]
+  refreshTokens RefreshToken[]
 
   @@map("users")
+}
+
+model RefreshToken {
+  // id = le "jti" embarque dans le refresh token JWT. Une ligne presente et
+  // non expiree => token valide. Rotation: la ligne est supprimee a l'usage et
+  // une nouvelle est creee. Logout: la ligne est supprimee. Les anciens tokens
+  // emis avant ce systeme n'ont pas de ligne => rejetes (reconnexion unique).
+  id        String   @id
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
 }
 
 model Customer {

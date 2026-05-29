@@ -5,6 +5,7 @@ import { RoomsService } from '../rooms/rooms.service';
 import { EmailService } from '../email/email.service';
 import { CreateBookingDto, QuoteDto, BookingQueryDto } from './bookings.dto';
 import { generateBookingReference, calculateNights } from '../common/utils';
+import { isValidTransition } from './booking-status';
 
 @Injectable()
 export class BookingsService {
@@ -205,20 +206,11 @@ export class BookingsService {
     };
   }
 
-  private static readonly VALID_TRANSITIONS: Record<string, string[]> = {
-    PENDING: ['CONFIRMED', 'CANCELLED'],
-    CONFIRMED: ['COMPLETED', 'CANCELLED', 'NO_SHOW'],
-    COMPLETED: [],
-    CANCELLED: [],
-    NO_SHOW: [],
-  };
-
   async updateStatus(id: string, status: string, reason?: string) {
     const booking = await this.prisma.booking.findUnique({ where: { id } });
     if (!booking) throw new NotFoundException('Réservation non trouvée');
 
-    const allowed = BookingsService.VALID_TRANSITIONS[booking.bookingStatus] || [];
-    if (!allowed.includes(status)) {
+    if (!isValidTransition(booking.bookingStatus, status)) {
       throw new BadRequestException(
         `Transition invalide : ${booking.bookingStatus} → ${status}`,
       );

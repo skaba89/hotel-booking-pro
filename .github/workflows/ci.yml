@@ -45,8 +45,15 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
-      - name: Lint
-        run: npm run lint
+      - name: Test (api unit tests)
+        run: npm run test --workspace=apps/api
 
       - name: Build (shared + api + web)
         run: npm run build
+
+      # Lint best-effort : ESLint n'est pas (encore) installe/configure dans ce
+      # monorepo. On garde l'etape informative sans bloquer le pipeline tant que
+      # l'outillage n'est pas en place — les vraies barrieres sont Test et Build.
+      - name: Lint (non-bloquant)
+        continue-on-error: true
+        run: npm run lint

@@ -21,11 +21,14 @@ export default function AdminCustomersPage() {
   const loadCustomers = async () => {
     setLoading(true);
     try {
-      const data = await api.get<any[]>('/admin/customers');
-      setCustomers(data || []);
-      setFilteredCustomers(data || []);
+      const res = await api.get<any>('/admin/customers?limit=100');
+      const list = Array.isArray(res) ? res : res?.data || [];
+      setCustomers(list);
+      setFilteredCustomers(list);
     } catch (err) {
       console.error(err);
+      setCustomers([]);
+      setFilteredCustomers([]);
     } finally {
       setLoading(false);
     }

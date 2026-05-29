@@ -10,7 +10,7 @@ services:
     name: hotel-setifana-api
     runtime: docker
     repo: https://github.com/skaba89/hotel-booking-pro
-    branch: main
+    branch: master
     region: frankfurt
     plan: free
     # Build the API image; context is the repo root so the Dockerfile can COPY apps/api and prisma.

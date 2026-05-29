@@ -65,7 +65,7 @@ export function HeroSection() {
               </Button>
             </Link>
             <Link href="/rooms">
-              <Button variant="outline" size="xl" className="border-white/30 text-white hover:bg-white/10">
+              <Button variant="outline" size="xl" className="border-white/60 bg-transparent text-white hover:bg-white/15 hover:text-white">
                 {t('rooms.details')}
               </Button>
             </Link>

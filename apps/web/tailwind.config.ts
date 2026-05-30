@@ -21,13 +21,13 @@ const config: Config = {
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
         primary: {
-          DEFAULT: '#071B33',
-          foreground: '#FFFFFF',
+          DEFAULT: 'hsl(var(--primary))',
+          foreground: 'hsl(var(--primary-foreground))',
         },
         gold: {
-          DEFAULT: '#C8A45D',
-          light: '#D4B876',
-          dark: '#A88B47',
+          DEFAULT: 'hsl(var(--accent))',
+          light: 'hsl(var(--accent-light))',
+          dark: 'hsl(var(--accent-dark))',
         },
         secondary: {
           DEFAULT: '#F6F7F9',
@@ -38,8 +38,8 @@ const config: Config = {
           foreground: '#64748B',
         },
         accent: {
-          DEFAULT: '#C8A45D',
-          foreground: '#071B33',
+          DEFAULT: 'hsl(var(--accent))',
+          foreground: 'hsl(var(--accent-foreground))',
         },
         destructive: {
           DEFAULT: '#EF4444',

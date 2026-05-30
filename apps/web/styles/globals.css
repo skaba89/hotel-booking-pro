@@ -23,6 +23,8 @@
     --border: 220 13% 91%;
     --input: 220 13% 91%;
     --ring: 39 50% 57%;
+    --accent-light: 39 50% 67%;
+    --accent-dark: 39 50% 45%;
     --radius: 0.75rem;
   }
 }

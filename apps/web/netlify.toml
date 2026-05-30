@@ -5,8 +5,8 @@
 # ===========================================
 
 [build]
-  # Netlify runs the command from the repo ROOT, so paths are root-relative.
-  # Build only the web workspace (deps hoisted to root by npm workspaces).
+  # Netlify CLI runs from the monorepo root (--filter selects this package).
+  # Build only the web workspace; deps are hoisted to root by npm workspaces.
   command = "npm run build --workspace=apps/web"
   publish = "apps/web/.next"
 

@@ -12,15 +12,24 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AdminLayout } from '@/components/admin/admin-layout';
 import { useToast } from '@/components/ui/toast';
 import { api } from '@/lib/api';
+import { applyThemeColors } from '@/lib/theme-provider';
 
 // ─── Color Palettes ──────────────────────────────────────────────
 const PALETTES = [
-  { id: 'luxe_classique', name: 'Luxe Classique', primary: '#071B33', accent: '#C8A45D', desc: 'Bleu nuit & or' },
-  { id: 'ocean', name: 'Ocean', primary: '#0C2D3F', accent: '#2BA5A5', desc: 'Bleu profond & turquoise' },
-  { id: 'emerald', name: 'Emeraude', primary: '#0D2818', accent: '#3DAA6D', desc: 'Vert foret & emeraude' },
-  { id: 'rose', name: 'Rose Gold', primary: '#2D1520', accent: '#D4638F', desc: 'Bordeaux & rose' },
-  { id: 'midnight', name: 'Midnight', primary: '#1A1A2E', accent: '#7B5EA7', desc: 'Violet nuit & lavande' },
-  { id: 'sunset', name: 'Coucher de soleil', primary: '#2C1810', accent: '#E8732A', desc: 'Brun chaud & orange' },
+  // Originales
+  { id: 'luxe_classique', name: 'Luxe Classique',      primary: '#071B33', accent: '#C8A45D', desc: 'Bleu nuit & or' },
+  { id: 'ocean',          name: 'Ocean',               primary: '#0C2D3F', accent: '#2BA5A5', desc: 'Bleu profond & turquoise' },
+  { id: 'emerald',        name: 'Emeraude',            primary: '#0D2818', accent: '#3DAA6D', desc: 'Vert foret & emeraude' },
+  { id: 'rose',           name: 'Rose Gold',           primary: '#2D1520', accent: '#D4638F', desc: 'Bordeaux & rose' },
+  { id: 'midnight',       name: 'Midnight',            primary: '#1A1A2E', accent: '#7B5EA7', desc: 'Violet nuit & lavande' },
+  { id: 'sunset',         name: 'Coucher de soleil',   primary: '#2C1810', accent: '#E8732A', desc: 'Brun chaud & orange' },
+  // Nouvelles
+  { id: 'champagne',      name: 'Champagne',           primary: '#241609', accent: '#D4B87A', desc: 'Brun chaud & champagne' },
+  { id: 'royal_blue',     name: 'Bleu Royal',          primary: '#071E5E', accent: '#4A8FCC', desc: 'Marine & bleu roi' },
+  { id: 'sage',           name: 'Sauge',               primary: '#162820', accent: '#48A878', desc: 'Vert sage & menthe' },
+  { id: 'burgundy',       name: 'Bordeaux',            primary: '#2A0810', accent: '#C41840', desc: 'Bordeaux profond & rubis' },
+  { id: 'azure',          name: 'Azure',               primary: '#1A2D44', accent: '#1DA3D8', desc: 'Marine & azur' },
+  { id: 'desert',         name: 'Desert',              primary: '#351D0F', accent: '#D49030', desc: 'Sable chaud & miel' },
 ];
 
 const FONTS = [
@@ -297,11 +306,11 @@ export default function AdminSettingsPage() {
             <Card>
               <CardHeader><CardTitle className="text-base flex items-center gap-2"><Palette className="w-4 h-4" /> Palette de couleurs</CardTitle></CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                   {PALETTES.map((p) => (
                     <button
                       key={p.id}
-                      onClick={() => set('theme_primary_color', p.id)}
+                      onClick={() => { set('theme_primary_color', p.id); applyThemeColors(p.id); }}
                       className={`relative p-4 rounded-xl border-2 text-left transition-all ${
                         values.theme_primary_color === p.id
                           ? 'border-[#C8A45D] ring-2 ring-[#C8A45D]/20 shadow-md'

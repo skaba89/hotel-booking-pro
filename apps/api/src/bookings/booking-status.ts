@@ -13,9 +13,13 @@ export type BookingStatus =
 export const VALID_TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
   PENDING: ['CONFIRMED', 'CANCELLED'],
   CONFIRMED: ['COMPLETED', 'CANCELLED', 'NO_SHOW'],
-  COMPLETED: [],
-  CANCELLED: [],
-  NO_SHOW: [],
+  // Réactivation admin : un statut terminal peut être ramené à CONFIRMED pour
+  // corriger une erreur (no-show alors que le client est venu, annulation
+  // accidentelle, etc.). La disponibilité est re-vérifiée côté service avant
+  // de réactiver (cf. requiresAvailabilityRecheck) pour éviter un double-booking.
+  COMPLETED: ['CONFIRMED'],
+  CANCELLED: ['CONFIRMED'],
+  NO_SHOW: ['CONFIRMED'],
 };
 
 /** Indique si la transition `from -> to` est autorisée par la machine à états. */
@@ -24,8 +28,18 @@ export function isValidTransition(from: string, to: string): boolean {
   return allowed.includes(to as BookingStatus);
 }
 
-/** États terminaux : aucune transition sortante n'est autorisée. */
+/** États terminaux : seule une réactivation explicite (-> CONFIRMED) en sort. */
 const TERMINAL_STATUSES: BookingStatus[] = ['COMPLETED', 'CANCELLED', 'NO_SHOW'];
+
+/**
+ * Vrai si la transition est une réactivation depuis un état terminal vers
+ * CONFIRMED. Dans ce cas, la réservation ne « réservait » plus la chambre
+ * (les états terminaux ne comptent pas dans les disponibilités) : il faut
+ * donc re-vérifier qu'aucune autre réservation/blocage ne chevauche les dates.
+ */
+export function requiresAvailabilityRecheck(from: string, to: string): boolean {
+  return to === 'CONFIRMED' && TERMINAL_STATUSES.includes(from as BookingStatus);
+}
 
 /** Libellés français des statuts, pour des messages d'erreur lisibles. */
 export const STATUS_LABELS_FR: Record<BookingStatus, string> = {
@@ -48,7 +62,7 @@ export function transitionErrorMessage(from: string, to: string): string {
     return `Cette réservation est déjà ${fromLabel}.`;
   }
   if (TERMINAL_STATUSES.includes(from as BookingStatus)) {
-    return `Cette réservation est ${fromLabel} : son statut ne peut plus être modifié.`;
+    return `Une réservation ${fromLabel} ne peut être que réactivée (statut « confirmée »).`;
   }
   const toLabel = STATUS_LABELS_FR[to as BookingStatus] || to;
   return `Transition impossible : une réservation ${fromLabel} ne peut pas passer à « ${toLabel} ».`;

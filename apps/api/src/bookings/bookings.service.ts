@@ -5,7 +5,7 @@ import { RoomsService } from '../rooms/rooms.service';
 import { EmailService } from '../email/email.service';
 import { CreateBookingDto, QuoteDto, BookingQueryDto } from './bookings.dto';
 import { generateBookingReference, calculateNights } from '../common/utils';
-import { isValidTransition, transitionErrorMessage } from './booking-status';
+import { isValidTransition, transitionErrorMessage, requiresAvailabilityRecheck } from './booking-status';
 
 @Injectable()
 export class BookingsService {
@@ -212,6 +212,22 @@ export class BookingsService {
 
     if (!isValidTransition(booking.bookingStatus, status)) {
       throw new BadRequestException(transitionErrorMessage(booking.bookingStatus, status));
+    }
+
+    // Réactivation d'une réservation terminale : la chambre avait été libérée,
+    // on s'assure qu'aucune autre réservation/blocage n'occupe désormais ces
+    // dates avant de la remettre en CONFIRMED (anti double-booking).
+    if (requiresAvailabilityRecheck(booking.bookingStatus, status)) {
+      const available = await this.roomsService.checkAvailability(
+        booking.roomId,
+        booking.checkInDate,
+        booking.checkOutDate,
+      );
+      if (!available) {
+        throw new ConflictException(
+          'Impossible de réactiver : la chambre est déjà réservée ou bloquée pour ces dates.',
+        );
+      }
     }
 
     const data: any = { bookingStatus: status };

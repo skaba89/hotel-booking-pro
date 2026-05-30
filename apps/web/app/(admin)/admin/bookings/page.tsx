@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Search, Download, Eye, X, CheckCircle, XCircle, Clock, UserCheck, AlertTriangle } from 'lucide-react';
+import { Search, Download, Eye, X, CheckCircle, XCircle, Clock, UserCheck, AlertTriangle, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -106,6 +106,13 @@ export default function AdminBookingsPage() {
         actions.push({ label: 'Terminer', status: 'COMPLETED', icon: UserCheck, variant: 'blue' });
         actions.push({ label: 'No-show', status: 'NO_SHOW', icon: AlertTriangle, variant: 'gray' });
         actions.push({ label: 'Annuler', status: 'CANCELLED', icon: XCircle, variant: 'red' });
+        break;
+      // États terminaux : réactivation possible (corrige une erreur). Le serveur
+      // re-vérifie la disponibilité avant de remettre la réservation en CONFIRMED.
+      case 'CANCELLED':
+      case 'NO_SHOW':
+      case 'COMPLETED':
+        actions.push({ label: 'Réactiver', status: 'CONFIRMED', icon: RotateCcw, variant: 'green' });
         break;
     }
 

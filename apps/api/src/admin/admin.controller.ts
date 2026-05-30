@@ -125,6 +125,77 @@ export class AdminController {
     };
   }
 
+  /**
+   * Rapport financier consolidé sur une période (base "encaissements") :
+   * recettes (paiements réussis) − dépenses = bénéfice net, avec le détail
+   * de chaque ligne pour export PDF/CSV. Défaut = mois en cours.
+   */
+  @Get('reports/financial')
+  async getFinancialReport(
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    const now = new Date();
+    const fromDate = from ? new Date(from) : new Date(now.getFullYear(), now.getMonth(), 1);
+    const toDate = to ? new Date(to) : now;
+    const toEnd = new Date(toDate);
+    toEnd.setHours(23, 59, 59, 999);
+
+    const [payments, expenses, expenseGrouped] = await Promise.all([
+      this.prisma.payment.findMany({
+        where: { status: 'SUCCESS', paidAt: { gte: fromDate, lte: toEnd } },
+        include: { booking: { select: { bookingReference: true, customerName: true } } },
+        orderBy: { paidAt: 'asc' },
+      }),
+      this.prisma.expense.findMany({
+        where: { expenseDate: { gte: fromDate, lte: toEnd } },
+        orderBy: { expenseDate: 'asc' },
+      }),
+      this.prisma.expense.groupBy({
+        by: ['category'],
+        where: { expenseDate: { gte: fromDate, lte: toEnd } },
+        _sum: { amount: true },
+        _count: { _all: true },
+      }),
+    ]);
+
+    const totalRevenue = payments.reduce((s, p) => s + Number(p.amount), 0);
+    const totalExpenses = expenses.reduce((s, e) => s + Number(e.amount), 0);
+
+    const byCategory = expenseGrouped
+      .map((g) => ({
+        category: g.category,
+        amount: Number(g._sum.amount || 0),
+        count: g._count._all,
+      }))
+      .sort((a, b) => b.amount - a.amount);
+
+    return {
+      period: { from: fromDate.toISOString(), to: toEnd.toISOString() },
+      totalRevenue,
+      totalExpenses,
+      netProfit: totalRevenue - totalExpenses,
+      byCategory,
+      revenues: payments.map((p) => ({
+        date: p.paidAt,
+        reference: p.booking?.bookingReference || '-',
+        customer: p.booking?.customerName || '-',
+        method: p.paymentMethod,
+        amount: Number(p.amount),
+        currency: p.currency,
+      })),
+      expenses: expenses.map((e) => ({
+        date: e.expenseDate,
+        reference: e.reference,
+        category: e.category,
+        description: e.description,
+        vendor: e.vendor || '-',
+        amount: Number(e.amount),
+        currency: e.currency,
+      })),
+    };
+  }
+
   @Get('dashboard/revenue')
   async getRevenue(@Query('period') period: string = 'month') {
     const now = new Date();

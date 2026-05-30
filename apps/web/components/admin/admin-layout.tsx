@@ -22,6 +22,7 @@ import {
   UserCog,
   FileText,
   Wallet,
+  FileBarChart,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useTheme } from '@/lib/theme-provider';
@@ -33,6 +34,7 @@ const navItems = [
   { href: '/admin/payments', label: 'Paiements', icon: CreditCard },
   { href: '/admin/documents', label: 'Devis & Factures', icon: FileText },
   { href: '/admin/expenses', label: 'Depenses', icon: Wallet },
+  { href: '/admin/reports', label: 'Rapports', icon: FileBarChart },
   { href: '/admin/customers', label: 'Clients', icon: Users },
   { href: '/admin/staff', label: 'Personnel', icon: UserCog },
   { href: '/admin/services', label: 'Services', icon: ConciergeBell },

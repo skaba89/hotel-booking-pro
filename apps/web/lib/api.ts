@@ -462,3 +462,43 @@ export async function getExpensesSummary(params?: Record<string, string>) {
   const query = params ? '?' + new URLSearchParams(params).toString() : '';
   return api.get<any>(`/admin/dashboard/expenses-summary${query}`);
 }
+
+// ============================================================
+// Rapports financiers
+// ============================================================
+
+export interface FinancialReportLine {
+  date: string;
+  reference: string;
+  amount: number;
+  currency: string;
+}
+
+export interface FinancialReportRevenue extends FinancialReportLine {
+  customer: string;
+  method: string;
+}
+
+export interface FinancialReportExpense extends FinancialReportLine {
+  category: ExpenseCategory;
+  description: string;
+  vendor: string;
+}
+
+export interface FinancialReport {
+  period: { from: string; to: string };
+  totalRevenue: number;
+  totalExpenses: number;
+  netProfit: number;
+  byCategory: { category: ExpenseCategory; amount: number; count: number }[];
+  revenues: FinancialReportRevenue[];
+  expenses: FinancialReportExpense[];
+}
+
+/** Rapport financier consolidé (recettes − dépenses) sur une période. */
+export async function getFinancialReport(params?: { from?: string; to?: string }) {
+  const query = params
+    ? '?' + new URLSearchParams(Object.entries(params).filter(([, v]) => v) as [string, string][]).toString()
+    : '';
+  return api.get<FinancialReport>(`/admin/reports/financial${query}`);
+}

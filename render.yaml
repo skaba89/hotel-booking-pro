@@ -23,7 +23,7 @@ services:
         value: production
       # Allows the deployed frontend origin through CORS.
       - key: NEXT_PUBLIC_SITE_URL
-        value: https://hotel-setifana-conakry.netlify.app
+        value: https://setifana-hotel-conakry.netlify.app
       # ---- Secrets: set these in the Render dashboard (not stored in git) ----
       - key: DATABASE_URL
         sync: false

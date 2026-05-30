@@ -1,4 +1,4 @@
-import { Controller, Get, Res, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Patch, Param, Res, Query, UseGuards, NotFoundException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Response } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
@@ -228,6 +228,35 @@ export class AdminController {
       orderBy: { createdAt: 'desc' },
       take: 10,
     });
+  }
+
+  /**
+   * Valide manuellement un paiement PAY_AT_HOTEL (ou tout paiement PENDING).
+   * Met à jour payment.status → SUCCESS et booking.paymentStatus → PAID
+   * dans une transaction atomique.
+   */
+  @Patch('payments/:id/confirm')
+  async confirmPaymentAtHotel(@Param('id') id: string) {
+    const payment = await this.prisma.payment.findUnique({
+      where: { id },
+      include: { booking: true },
+    });
+
+    if (!payment) throw new NotFoundException('Paiement non trouvé');
+    if (payment.status === 'SUCCESS') return { message: 'Paiement déjà confirmé' };
+
+    await this.prisma.$transaction([
+      this.prisma.payment.update({
+        where: { id },
+        data: { status: 'SUCCESS', paidAt: new Date() },
+      }),
+      this.prisma.booking.update({
+        where: { id: payment.bookingId },
+        data: { paymentStatus: 'PAID' },
+      }),
+    ]);
+
+    return { message: 'Paiement confirmé avec succès' };
   }
 
   @Get('dashboard/latest-payments')

@@ -89,7 +89,8 @@ export default function AdminPaymentsPage() {
   const handleMarkPaid = async (payment: any) => {
     if (!confirm('Marquer ce paiement comme recu ?')) return;
     try {
-      await api.patch(`/admin/bookings/${payment.bookingId}/status`, { status: 'CONFIRMED' });
+      await api.patch(`/admin/payments/${payment.id}/confirm`, {});
+      toast('Paiement validé avec succès', 'success');
       loadPayments();
     } catch (err: any) {
       toast(err.message, 'error');

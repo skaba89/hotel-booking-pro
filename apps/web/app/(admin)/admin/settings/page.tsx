@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AdminLayout } from '@/components/admin/admin-layout';
 import { useToast } from '@/components/ui/toast';
 import { api } from '@/lib/api';
-import { applyThemeColors } from '@/lib/theme-provider';
+import { applyThemeColors, useTheme } from '@/lib/theme-provider';
 
 // ─── Color Palettes ──────────────────────────────────────────────
 const PALETTES = [
@@ -60,6 +60,7 @@ const TABS = [
 // ─── Main Component ──────────────────────────────────────────────
 export default function AdminSettingsPage() {
   const { toast } = useToast();
+  const { refreshSettings } = useTheme();
   const [activeTab, setActiveTab] = useState('general');
   const [values, setValues] = useState<Record<string, string>>({});
   const [initialValues, setInitialValues] = useState<Record<string, string>>({});
@@ -97,6 +98,11 @@ export default function AdminSettingsPage() {
       await api.patch('/admin/settings', values);
       setInitialValues({ ...values });
       toast('Parametres sauvegardes avec succes', 'success');
+      // Appliquer les couleurs immédiatement et rafraîchir le contexte global
+      if (values.theme_primary_color) {
+        applyThemeColors(values.theme_primary_color);
+      }
+      await refreshSettings();
     } catch (err: any) {
       toast(err.message || 'Erreur de sauvegarde', 'error');
     } finally {

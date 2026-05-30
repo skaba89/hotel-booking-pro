@@ -1,8 +1,9 @@
 import {
   Controller, Get, Post, Patch, Body, UseGuards,
-  UseInterceptors, UploadedFile, BadRequestException, Header,
+  UseInterceptors, UploadedFile, BadRequestException, Header, Inject,
 } from '@nestjs/common';
-import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
+import { CacheInterceptor, CacheTTL, CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { AuthGuard } from '@nestjs/passport';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -38,13 +39,16 @@ const imageFilter = (_req: any, file: Express.Multer.File, cb: any) => {
 
 @Controller()
 export class SettingsController {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+  ) {}
 
   @Public()
   @Get('settings/public')
   @UseInterceptors(CacheInterceptor)
-  @CacheTTL(600_000)
-  @Header('Cache-Control', 'public, max-age=600, stale-while-revalidate=1200')
+  @CacheTTL(10_000)
+  @Header('Cache-Control', 'no-store')
   async getPublicSettings() {
     const publicKeys = [
       // Hotel info
@@ -89,6 +93,9 @@ export class SettingsController {
       }),
     );
     await Promise.all(updates);
+    // Invalider le cache de la route publique pour que les couleurs/paramètres
+    // soient immédiatement visibles sur le site sans attendre l'expiration du cache.
+    try { await this.cacheManager.reset(); } catch { /* ignore */ }
     return { message: 'Parametres mis a jour' };
   }
 
@@ -106,6 +113,7 @@ export class SettingsController {
       create: { key: 'theme_logo_url', value: logoUrl, type: 'string' },
     });
 
+    try { await this.cacheManager.reset(); } catch { /* ignore */ }
     return { url: logoUrl, message: 'Logo mis a jour' };
   }
 }

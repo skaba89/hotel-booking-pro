@@ -3,8 +3,17 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  // url       = the pooler connection (PgBouncer) used by Prisma at runtime.
+  // directUrl = bypasses the pooler and goes direct — required for migrations.
+  //
+  // Neon setup (Render env vars):
+  //   DATABASE_URL     = postgres://...@ep-xxx-pooler.region.aws.neon.tech/dbname?pgbouncer=true
+  //   DIRECT_DATABASE_URL = postgres://...@ep-xxx.region.aws.neon.tech/dbname
+  //
+  // Local dev: set both to the same direct connection string (no pooler needed).
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
 }
 
 enum UserRole {

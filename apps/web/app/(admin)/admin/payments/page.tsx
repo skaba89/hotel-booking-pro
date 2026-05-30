@@ -233,7 +233,7 @@ export default function AdminPaymentsPage() {
                           <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setViewPayment(p)}>
                             <Eye className="w-3 h-3 mr-1" />Details
                           </Button>
-                          {p.status === 'PENDING' && (
+                          {['PENDING', 'INITIATED'].includes(p.status) && (
                             <Button size="sm" variant="gold" className="h-7 text-xs" onClick={() => handleMarkPaid(p)}>
                               Valider
                             </Button>
@@ -317,7 +317,7 @@ export default function AdminPaymentsPage() {
             </div>
             <div className="border-t px-6 py-4 flex justify-end gap-2 rounded-b-xl">
               <Button variant="outline" onClick={() => setViewPayment(null)}>Fermer</Button>
-              {viewPayment.status === 'PENDING' && (
+              {['PENDING', 'INITIATED'].includes(viewPayment.status) && (
                 <Button variant="gold" onClick={() => { handleMarkPaid(viewPayment); setViewPayment(null); }}>
                   Marquer comme paye
                 </Button>

@@ -1,6 +1,6 @@
 # Hotel SETIFANA — Guide de Configuration & Formation
 
-**Version** : 1.0  
+**Version** : 1.1  
 **Derniere mise a jour** : Mai 2026  
 **Plateforme** : Hotel Booking Pro
 
@@ -14,16 +14,19 @@
 4. [Gestion des reservations](#4-gestion-des-reservations)
 5. [Gestion des chambres](#5-gestion-des-chambres)
 6. [Gestion des paiements](#6-gestion-des-paiements)
-7. [Gestion des clients](#7-gestion-des-clients)
-8. [Gestion des services](#8-gestion-des-services)
-9. [Gestion des avis](#9-gestion-des-avis)
-10. [Messages de contact](#10-messages-de-contact)
-11. [Analytiques](#11-analytiques)
-12. [Parametres generaux](#12-parametres-generaux)
-13. [Site public — Parcours client](#13-site-public--parcours-client)
-14. [Configuration initiale du serveur](#14-configuration-initiale-du-serveur)
-15. [Maintenance et operations courantes](#15-maintenance-et-operations-courantes)
-16. [FAQ et depannage](#16-faq-et-depannage)
+7. [Devis et factures](#7-devis-et-factures)
+8. [Gestion des depenses](#8-gestion-des-depenses)
+9. [Gestion du personnel](#9-gestion-du-personnel)
+10. [Gestion des clients](#10-gestion-des-clients)
+11. [Gestion des services](#11-gestion-des-services)
+12. [Gestion des avis](#12-gestion-des-avis)
+13. [Messages de contact](#13-messages-de-contact)
+14. [Analytiques](#14-analytiques)
+15. [Parametres generaux](#15-parametres-generaux)
+16. [Site public — Parcours client](#16-site-public--parcours-client)
+17. [Configuration initiale du serveur](#17-configuration-initiale-du-serveur)
+18. [Maintenance et operations courantes](#18-maintenance-et-operations-courantes)
+19. [FAQ et depannage](#19-faq-et-depannage)
 
 ---
 
@@ -80,6 +83,8 @@ Le tableau de bord (`/admin/dashboard`) est votre vue d'ensemble de l'activite d
 |---------------------|----------------------------------------------------------|
 | Total reservations  | Nombre total de reservations depuis l'ouverture          |
 | Revenus totaux      | Somme de tous les paiements recus (statut PAID)          |
+| Total depenses      | Somme de toutes les depenses enregistrees                |
+| Benefice net        | Revenus totaux moins total des depenses                  |
 | Reservations du jour| Reservations creees aujourd'hui                          |
 | Taux d'occupation   | Pourcentage de chambres occupees aujourd'hui              |
 | Chambres disponibles| Nombre de chambres en statut AVAILABLE                    |
@@ -257,7 +262,219 @@ Cliquez sur l'icone **oeil** pour voir les details : montant, methode, date, ref
 
 ---
 
-## 7. Gestion des clients
+## 7. Devis et factures
+
+**Menu** : Devis & Factures (`/admin/documents`)
+
+Ce module permet de creer, envoyer et suivre des **devis** (avant la prestation)
+et des **factures** (apres la prestation), independamment ou a partir d'une
+reservation existante. Chaque document genere un **PDF** et un **lien public
+securise** que le client peut consulter sans se connecter.
+
+### Difference devis / facture
+
+| Type    | Usage                                              | Numerotation   |
+|---------|----------------------------------------------------|----------------|
+| Devis   | Proposition de prix envoyee avant accord du client | DEV-2026-0001  |
+| Facture | Document de paiement emis apres la prestation      | FAC-2026-0001  |
+
+### Creer un document
+
+1. Cliquez sur **+ Nouveau document**
+2. Choisissez le **type** (Devis ou Facture) — non modifiable apres creation
+3. Renseignez les **informations client** : nom (obligatoire), email
+   (obligatoire), telephone, adresse
+4. Ajoutez une ou plusieurs **lignes** (bouton **Ajouter une ligne**) :
+   - **Description** : ex. "Sejour Suite Executive — 3 nuits"
+   - **Quantite** et **Prix unitaire** : le total de la ligne se calcule seul
+5. Reglez les **parametres financiers** :
+   - **Devise** (GNF par defaut)
+   - **TVA (%)** : taxe appliquee sur le sous-total
+   - **Remise** : montant deduit du total
+   - **Echeance** / **Valable jusqu'au** : date limite de paiement ou de validite
+6. Ajoutez d'eventuelles **notes** (conditions, mentions particulieres)
+7. Le bloc **Totaux** affiche en direct le sous-total, la TVA et le total
+8. Cliquez sur **Sauvegarder**
+
+> **Astuce** : un document fraichement cree est en statut **Brouillon**. Vous
+> pouvez encore le modifier librement tant qu'il n'a pas ete accepte, paye ou
+> cloture.
+
+### Cycle de vie d'un document
+
+**Devis** : Brouillon -> Envoye -> Accepte / Refuse / Expire
+**Facture** : Brouillon -> Envoye -> Payee / Annulee
+
+Le changement de statut se fait via le menu deroulant **Changer...** dans la
+colonne Statut. Seules les transitions autorisees sont proposees.
+
+| Statut    | Couleur   | S'applique a       |
+|-----------|-----------|--------------------|
+| Brouillon | Gris      | Devis et factures  |
+| Envoye    | Bleu      | Devis et factures  |
+| Accepte   | Vert      | Devis              |
+| Refuse    | Rouge     | Devis              |
+| Expire    | Orange    | Devis              |
+| Payee     | Emeraude  | Factures           |
+| Annulee   | Gris barre| Factures           |
+
+### Actions disponibles
+
+| Action            | Icone        | Effet                                                  |
+|-------------------|--------------|--------------------------------------------------------|
+| Modifier          | Crayon       | Editer un document en statut Brouillon ou Envoye       |
+| Telecharger PDF   | Telechargement | Ouvre/telecharge le PDF du document                  |
+| Envoyer par email | Avion         | Envoie le PDF + le lien au client, passe en "Envoye"   |
+| Facturer          | Double fleche| Convertit un devis **accepte** en facture             |
+| Supprimer         | Poubelle     | Disponible uniquement sur un brouillon (ADMIN)         |
+
+### Convertir un devis en facture
+
+1. Le devis doit etre au statut **Accepte**
+2. Cliquez sur **Facturer** : une facture est creee avec les memes lignes,
+   montants et infos client, liee au devis d'origine
+3. Un devis ne peut etre converti qu'une seule fois
+
+### Lien public et PDF
+
+Chaque document possede une URL publique du type
+`/documents/{jeton}` que vous pouvez transmettre au client. Le client y
+consulte le document mis en forme et peut telecharger le PDF, **sans compte**.
+Le jeton est non devinable : seul le destinataire du lien y a acces.
+
+---
+
+## 8. Gestion des depenses
+
+**Menu** : Depenses (`/admin/expenses`)
+
+Ce module enregistre toutes les **depenses ponctuelles** de l'hotel et les met
+en regard des recettes pour calculer le **benefice net**. Chaque depense recoit
+une reference unique (ex. **DEP-2026-0001**).
+
+### Synthese financiere (en haut de page)
+
+Trois cartes resument la situation :
+
+| Carte                | Calcul                                       |
+|----------------------|----------------------------------------------|
+| Recettes encaissees  | Total des reservations payees                |
+| Total depenses       | Somme de toutes les depenses                 |
+| Benefice net         | Recettes encaissees moins total des depenses |
+
+En dessous, une barre de **repartition par categorie** montre le poids de
+chaque poste de depense (en pourcentage et en montant).
+
+### Categories de depenses
+
+| Categorie              | Exemples                                   |
+|------------------------|--------------------------------------------|
+| Fournitures            | Draps, produits d'entretien, consommables  |
+| Salaires               | Remuneration du personnel                  |
+| Energie / Eau          | Factures EDG, eau, carburant groupe        |
+| Maintenance            | Reparations, entretien technique           |
+| Marketing              | Publicite, reseaux sociaux, impressions    |
+| Nourriture & Boissons  | Approvisionnement restaurant / bar         |
+| Loyer                  | Location de locaux                         |
+| Taxes                  | Impots et taxes                            |
+| Autre                  | Tout ce qui n'entre pas dans les categories|
+
+### Enregistrer une depense
+
+1. Cliquez sur **+ Nouvelle depense**
+2. Renseignez :
+   - **Description** (obligatoire) : ex. "Facture EDG mars"
+   - **Categorie** (obligatoire) : voir le tableau ci-dessus
+   - **Moyen de paiement** : Especes, Virement, Mobile Money, Carte, Cheque, Autre
+   - **Montant** (obligatoire) et **Devise** (GNF par defaut)
+   - **Date de la depense** (obligatoire)
+   - **Fournisseur / beneficiaire** : ex. "EDG", "Sotelma"
+   - **N de facture (justificatif)** : reference de la facture fournisseur
+   - **Lien du justificatif** : URL vers un scan/photo de la piece (optionnel)
+   - **Notes** : precisions eventuelles
+3. Cliquez sur **Sauvegarder**
+
+> **Note** : il n'y a pas de televersement de fichier. Pour conserver un
+> justificatif, hebergez l'image/PDF en ligne (Drive, etc.) et collez son lien
+> dans le champ **Lien du justificatif**.
+
+### Rechercher et filtrer
+
+- **Recherche** : par reference, description, fournisseur ou n de facture
+- **Filtre par categorie** : pour isoler un poste de depense
+- Le bas de la liste affiche le **Total (filtre)** des depenses correspondant
+  aux criteres en cours
+
+### Modifier / Supprimer
+
+- Icone **crayon** : modifier une depense
+- Icone **lien externe** : ouvrir le justificatif (si un lien a ete renseigne)
+- Icone **poubelle** : supprimer (reserve au role ADMIN)
+
+---
+
+## 9. Gestion du personnel
+
+**Menu** : Personnel (`/admin/staff`)
+
+Ce module gere l'**equipe** de l'hotel et son **planning** de creneaux de
+travail. Deux vues sont disponibles via les onglets en haut de page : **Equipe**
+et **Planning**.
+
+### Vue Equipe — fiches du personnel
+
+Liste des membres avec leur departement, poste et coordonnees.
+
+**Ajouter un membre** :
+
+1. Cliquez sur **+ Nouvel employe**
+2. Renseignez :
+   - **Nom complet** (obligatoire)
+   - **Departement** : voir le tableau ci-dessous
+   - **Poste** : ex. "Chef de reception"
+   - **Telephone** et **Email**
+   - **Date d'embauche**
+   - **Notes**
+3. Cliquez sur **Sauvegarder**
+
+| Departement       | Exemple de poste            |
+|-------------------|-----------------------------|
+| Femme de chambre  | Agent d'entretien           |
+| Reception         | Receptionniste, concierge   |
+| Restaurant        | Serveur, maitre d'hotel     |
+| Cuisine           | Cuisinier, plongeur         |
+| Maintenance       | Technicien                  |
+| Securite          | Agent de securite           |
+| Direction         | Manager, gerant             |
+| Autre             | Divers                      |
+
+### Vue Planning — creneaux de travail
+
+Le planning s'affiche par **semaine** (navigation avec les fleches gauche/droite).
+Chaque ligne correspond a un membre, chaque colonne a un jour (Lun a Dim).
+
+**Ajouter un creneau** :
+
+1. Dans la cellule d'un membre/jour, cliquez pour ajouter un creneau
+2. Renseignez :
+   - **Heure de debut** et **Heure de fin**
+   - **Zone / affectation** (optionnel) : ex. "Etage 2", "Hall"
+   - **Statut** du creneau
+   - **Notes**
+3. Cliquez sur **Sauvegarder**
+
+| Statut du creneau | Couleur | Signification              |
+|-------------------|---------|----------------------------|
+| Planifie          | Dore    | Creneau prevu              |
+| Termine           | Vert    | Creneau effectue           |
+| Absent            | Rouge   | Le membre ne s'est pas presente |
+| Annule            | Gris barre | Creneau annule          |
+
+Cliquez sur un creneau existant pour le **modifier** ou le **supprimer**.
+
+---
+
+## 10. Gestion des clients
 
 **Menu** : Clients (`/admin/customers`)
 
@@ -283,7 +500,7 @@ Cliquez sur **oeil** pour voir :
 
 ---
 
-## 8. Gestion des services
+## 11. Gestion des services
 
 **Menu** : Services (`/admin/services`)
 
@@ -309,7 +526,7 @@ Les services sont affiches sur la page publique "Services" du site.
 
 ---
 
-## 9. Gestion des avis
+## 12. Gestion des avis
 
 **Menu** : Avis (`/admin/reviews`)
 
@@ -330,7 +547,7 @@ Les avis soumis par les clients doivent etre approuves avant publication.
 
 ---
 
-## 10. Messages de contact
+## 13. Messages de contact
 
 **Menu** : Messages (`/admin/contact-messages`)
 
@@ -353,7 +570,7 @@ Les messages soumis via le formulaire de contact du site arrivent ici.
 
 ---
 
-## 11. Analytiques
+## 14. Analytiques
 
 **Menu** : Analytiques (`/admin/analytics`)
 
@@ -372,7 +589,7 @@ Les messages soumis via le formulaire de contact du site arrivent ici.
 
 ---
 
-## 12. Parametres generaux
+## 15. Parametres generaux
 
 **Menu** : Parametres (`/admin/settings`)
 
@@ -410,7 +627,7 @@ Cliquez sur **Sauvegarder** en haut de la page apres toute modification.
 
 ---
 
-## 13. Site public — Parcours client
+## 16. Site public — Parcours client
 
 ### Comment un client effectue une reservation
 
@@ -441,7 +658,7 @@ Cliquez sur **Sauvegarder** en haut de la page apres toute modification.
 
 ---
 
-## 14. Configuration initiale du serveur
+## 17. Configuration initiale du serveur
 
 ### Prerequis techniques
 
@@ -570,7 +787,7 @@ Verifiez que tout fonctionne :
 
 ---
 
-## 15. Maintenance et operations courantes
+## 18. Maintenance et operations courantes
 
 ### Sauvegardes de la base de donnees
 
@@ -644,7 +861,7 @@ Puis dans la table `User`, ajoutez une ligne avec :
 
 ---
 
-## 16. FAQ et depannage
+## 19. FAQ et depannage
 
 ### "Je ne peux pas me connecter a l'admin"
 
@@ -692,6 +909,32 @@ Allez dans **Parametres** > section **Informations hotel** :
 Allez dans **Parametres** > section **Paiements** :
 - Decochez le moyen de paiement a desactiver
 - Cliquez sur **Sauvegarder**
+
+### "Je ne peux plus modifier un devis ou une facture"
+
+Un document n'est modifiable que lorsqu'il est au statut **Brouillon** ou
+**Envoye**. Une fois **Accepte**, **Paye** ou **Cloture**, il est verrouille pour
+des raisons de tracabilite. Pour le corriger, repassez-le en brouillon si la
+transition est autorisee, sinon creez un nouveau document.
+
+### "Je ne peux pas supprimer une facture / un devis"
+
+Seuls les documents au statut **Brouillon** peuvent etre supprimes, et par un
+**ADMIN**. Un document deja envoye doit etre **Annule** plutot que supprime.
+
+### "Le benefice net affiche ne correspond pas a mes attentes"
+
+Le benefice net = **recettes encaissees** (reservations payees) **moins** le
+**total des depenses** enregistrees. Verifiez que toutes les depenses ont bien
+ete saisies et que les reservations concernees sont au statut paye. Les devis
+et factures du module documents n'entrent pas dans ce calcul (seuls les
+paiements de reservations comptent comme recettes).
+
+### "Comment conserver le justificatif d'une depense ?"
+
+Le module Depenses ne stocke pas de fichier. Hebergez le scan ou la photo de la
+piece en ligne (Google Drive, Dropbox, etc.), rendez le lien accessible, puis
+collez-le dans le champ **Lien du justificatif** de la depense.
 
 ---
 

@@ -16,6 +16,11 @@ async function bootstrap() {
     rawBody: true,
   });
 
+  // Trust the first proxy hop so X-Forwarded-For is used as the real client IP.
+  // Essential when behind Netlify CDN, Cloudflare, or any reverse proxy so the
+  // per-IP throttler uses actual user IPs instead of the proxy/CDN IP.
+  app.set('trust proxy', 1);
+
   const config = app.get(ConfigService);
   // Render (and most PaaS) inject the port via process.env.PORT; fall back to API_PORT for local dev.
   const port = parseInt(process.env.PORT ?? '', 10) || config.get<number>('API_PORT', 4005);

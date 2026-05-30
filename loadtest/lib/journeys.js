@@ -56,26 +56,41 @@ export function adminLogin() {
   return token;
 }
 
+// ---- per-VU fake IP so the throttler treats each VU as a distinct user ----
+// In production, users come from different IPs; without this, all k6 VUs share
+// 127.0.0.1 and get throttled together after 100 req/min.
+// trust proxy (enabled in main.ts) makes NestJS honour X-Forwarded-For.
+function vuHeaders() {
+  // Deterministic per-VU IP in the 10.x.x.x private range — unique per VU.
+  const a = 10;
+  const b = Math.floor(__VU / 256) % 256;
+  const c = __VU % 256;
+  const d = 1;
+  return { ...JSON_HEADERS, 'X-Forwarded-For': `${a}.${b}.${c}.${d}` };
+}
+
 // ---- public read journey: browse -> detail -> availability -> quote ----
 
 export function browseJourney(rooms) {
+  const hdrs = vuHeaders();
+
   // 1. Landing: featured + first page of rooms (what the homepage / /rooms loads).
-  const featured = http.get(`${API}/rooms/featured`, { tags: { journey: 'browse' } });
+  const featured = http.get(`${API}/rooms/featured`, { headers: hdrs, tags: { journey: 'browse' } });
   check(featured, { 'featured 200': (r) => r.status === 200 });
 
-  const list = http.get(`${API}/rooms?page=1&limit=10`, { tags: { journey: 'browse' } });
+  const list = http.get(`${API}/rooms?page=1&limit=10`, { headers: hdrs, tags: { journey: 'browse' } });
   check(list, { 'rooms list 200': (r) => r.status === 200 });
 
   // 2. Pick a room and open its detail page.
   const room = pick(rooms);
-  const detail = http.get(`${API}/rooms/${room.slug}`, { tags: { journey: 'room_detail' } });
+  const detail = http.get(`${API}/rooms/${room.slug}`, { headers: hdrs, tags: { journey: 'room_detail' } });
   check(detail, { 'room detail 200': (r) => r.status === 200 });
 
   // 3. Check availability for a near-future stay.
   const { checkIn, checkOut } = futureDates(7 + Math.floor(Math.random() * 30), 1 + Math.floor(Math.random() * 4));
   const avail = http.get(
     `${API}/availability?roomId=${room.id}&checkIn=${checkIn}&checkOut=${checkOut}`,
-    { tags: { journey: 'availability' } },
+    { headers: hdrs, tags: { journey: 'availability' } },
   );
   check(avail, { 'availability 200': (r) => r.status === 200 });
 
@@ -83,7 +98,7 @@ export function browseJourney(rooms) {
   const quote = http.post(
     `${API}/bookings/quote`,
     JSON.stringify({ roomId: room.id, checkIn, checkOut, adults: 2, children: 0 }),
-    { headers: JSON_HEADERS, tags: { journey: 'quote' } },
+    { headers: hdrs, tags: { journey: 'quote' } },
   );
   check(quote, { 'quote 2xx': (r) => r.status === 200 || r.status === 201 });
 

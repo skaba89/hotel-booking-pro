@@ -20,6 +20,8 @@ import {
   ChevronDown,
   BarChart3,
   UserCog,
+  FileText,
+  Wallet,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useTheme } from '@/lib/theme-provider';
@@ -29,6 +31,8 @@ const navItems = [
   { href: '/admin/bookings', label: 'Reservations', icon: CalendarCheck },
   { href: '/admin/rooms', label: 'Chambres', icon: BedDouble },
   { href: '/admin/payments', label: 'Paiements', icon: CreditCard },
+  { href: '/admin/documents', label: 'Devis & Factures', icon: FileText },
+  { href: '/admin/expenses', label: 'Depenses', icon: Wallet },
   { href: '/admin/customers', label: 'Clients', icon: Users },
   { href: '/admin/staff', label: 'Personnel', icon: UserCog },
   { href: '/admin/services', label: 'Services', icon: ConciergeBell },

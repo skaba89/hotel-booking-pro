@@ -27,6 +27,7 @@ export class AdminController {
       availableRooms,
       maintenanceRooms,
       revenueResult,
+      expensesResult,
     ] = await Promise.all([
       this.prisma.booking.count(),
       this.prisma.booking.count({ where: { createdAt: { gte: today, lt: tomorrow } } }),
@@ -39,6 +40,7 @@ export class AdminController {
         where: { paymentStatus: 'PAID' },
         _sum: { totalAmount: true },
       }),
+      this.prisma.expense.aggregate({ _sum: { amount: true } }),
     ]);
 
     const occupiedToday = await this.prisma.booking.count({
@@ -51,15 +53,75 @@ export class AdminController {
 
     const occupancyRate = totalRooms > 0 ? Math.round((occupiedToday / totalRooms) * 100) : 0;
 
+    const totalRevenue = Number(revenueResult._sum.totalAmount || 0);
+    const totalExpenses = Number(expensesResult._sum.amount || 0);
+
     return {
       totalBookings,
-      totalRevenue: Number(revenueResult._sum.totalAmount || 0),
+      totalRevenue,
+      totalExpenses,
+      netProfit: totalRevenue - totalExpenses,
       todayBookings,
       confirmedBookings,
       cancelledBookings,
       occupancyRate,
       availableRooms,
       maintenanceRooms,
+    };
+  }
+
+  /**
+   * Synthèse financière des dépenses : total, répartition par catégorie et
+   * bénéfice net (recettes encaissées − dépenses). Bornable par dates (ISO).
+   */
+  @Get('dashboard/expenses-summary')
+  async getExpensesSummary(
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    const dateFilter =
+      from || to
+        ? {
+            expenseDate: {
+              ...(from && { gte: new Date(from) }),
+              ...(to && { lte: new Date(to) }),
+            },
+          }
+        : {};
+
+    const [grouped, totalResult, revenueResult] = await Promise.all([
+      this.prisma.expense.groupBy({
+        by: ['category'],
+        where: dateFilter,
+        _sum: { amount: true },
+        _count: { _all: true },
+      }),
+      this.prisma.expense.aggregate({
+        where: dateFilter,
+        _sum: { amount: true },
+      }),
+      this.prisma.booking.aggregate({
+        where: { paymentStatus: 'PAID' },
+        _sum: { totalAmount: true },
+      }),
+    ]);
+
+    const byCategory = grouped
+      .map((g) => ({
+        category: g.category,
+        amount: Number(g._sum.amount || 0),
+        count: g._count._all,
+      }))
+      .sort((a, b) => b.amount - a.amount);
+
+    const totalExpenses = Number(totalResult._sum.amount || 0);
+    const totalRevenue = Number(revenueResult._sum.totalAmount || 0);
+
+    return {
+      totalExpenses,
+      totalRevenue,
+      netProfit: totalRevenue - totalExpenses,
+      byCategory,
     };
   }
 

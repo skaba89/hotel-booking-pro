@@ -9,6 +9,8 @@ import { RoomsModule } from './rooms/rooms.module';
 import { BookingsModule } from './bookings/bookings.module';
 import { PaymentsModule } from './payments/payments.module';
 import { InvoicesModule } from './invoices/invoices.module';
+import { DocumentsModule } from './documents/documents.module';
+import { ExpensesModule } from './expenses/expenses.module';
 import { ServicesModule } from './services/services.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { ContactModule } from './contact/contact.module';
@@ -40,6 +42,8 @@ import { StaffModule } from './staff/staff.module';
     BookingsModule,
     PaymentsModule,
     InvoicesModule,
+    DocumentsModule,
+    ExpensesModule,
     ServicesModule,
     ReviewsModule,
     ContactModule,

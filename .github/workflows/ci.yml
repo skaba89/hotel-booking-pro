@@ -51,9 +51,8 @@ jobs:
       - name: Build (shared + api + web)
         run: npm run build
 
-      # Lint best-effort : ESLint n'est pas (encore) installe/configure dans ce
-      # monorepo. On garde l'etape informative sans bloquer le pipeline tant que
-      # l'outillage n'est pas en place — les vraies barrieres sont Test et Build.
-      - name: Lint (non-bloquant)
-        continue-on-error: true
+      # Lint bloquant : ESLint est configure dans chaque workspace
+      # (next/core-web-vitals cote web, @typescript-eslint cote api/shared).
+      # Les avertissements n'echouent pas ; seules les erreurs cassent le build.
+      - name: Lint
         run: npm run lint

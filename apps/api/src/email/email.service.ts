@@ -92,6 +92,58 @@ export class EmailService {
     return lines.join('\r\n');
   }
 
+  /**
+   * Envoie un devis ou une facture au client, avec le PDF en pièce jointe et
+   * un lien de consultation en ligne (page publique sécurisée par token).
+   */
+  async sendDocument(document: any, pdf: Buffer) {
+    const isQuote = document.type === 'QUOTE';
+    const label = isQuote ? 'Devis' : 'Facture';
+    const filenameLabel = isQuote ? 'devis' : 'facture';
+    const siteUrl = this.config.get<string>('SITE_URL')
+      || this.config.get<string>('NEXT_PUBLIC_SITE_URL')
+      || 'https://hotel-setifana-conakry.netlify.app';
+    const viewUrl = `${siteUrl}/documents/${document.publicToken}`;
+    const html = this.buildDocumentEmail(document, label, viewUrl);
+    await this.send(
+      document.clientEmail,
+      `${label} ${document.number} - Hotel SETIFANA`,
+      html,
+      [{ filename: `${filenameLabel}-${document.number}.pdf`, content: pdf }],
+    );
+  }
+
+  private buildDocumentEmail(document: any, label: string, viewUrl: string): string {
+    const total = `${Number(document.total).toLocaleString('fr-FR')} ${document.currency}`;
+    const isQuote = document.type === 'QUOTE';
+    return `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: #071B33; padding: 20px; text-align: center;">
+          <h1 style="color: #C8A45D; margin: 0;">Hotel SETIFANA</h1>
+          <p style="color: #fff; margin: 5px 0 0;">L'excellence de l'hospitalité à Conakry</p>
+        </div>
+        <div style="padding: 30px; background: #fff;">
+          <h2 style="color: #071B33;">${label} ${document.number}</h2>
+          <p>Cher(e) ${document.clientName},</p>
+          <p>Veuillez trouver ${isQuote ? 'votre devis' : 'votre facture'} ci-joint(e) au format PDF.</p>
+          <div style="background: #F6F7F9; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 5px 0;"><strong>Référence :</strong> ${document.number}</p>
+            <p style="margin: 5px 0; font-size: 18px;"><strong>Montant : ${total}</strong></p>
+          </div>
+          <p style="text-align: center; margin: 24px 0;">
+            <a href="${viewUrl}" style="background: #C8A45D; color: #fff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">
+              Consulter en ligne
+            </a>
+          </p>
+          <p style="color: #666;">Pour toute question, n'hésitez pas à nous contacter.</p>
+        </div>
+        <div style="background: #071B33; padding: 15px; text-align: center; color: #999; font-size: 12px;">
+          <p>Hotel SETIFANA - Conakry, Guinée</p>
+        </div>
+      </div>
+    `;
+  }
+
   async sendPaymentConfirmation(booking: any) {
     const html = this.buildPaymentEmail(booking);
     await this.send(booking.customerEmail, `Paiement confirmé - ${booking.bookingReference}`, html);

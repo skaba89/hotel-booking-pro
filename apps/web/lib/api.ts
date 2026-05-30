@@ -326,3 +326,139 @@ export async function getNewsletterSubscribers(params?: Record<string, string>) 
   const query = params ? '?' + new URLSearchParams(params).toString() : '';
   return api.get<any>(`/admin/newsletter/subscribers${query}`);
 }
+
+// ===========================================
+// Documents (Devis & Factures)
+// ===========================================
+
+export interface DocumentLine {
+  description: string;
+  quantity: number;
+  unitPrice: number;
+}
+
+export interface CreateDocumentInput {
+  type: 'QUOTE' | 'INVOICE';
+  clientName: string;
+  clientEmail: string;
+  clientPhone?: string;
+  clientAddress?: string;
+  bookingId?: string;
+  currency?: string;
+  taxRate?: number;
+  discountAmount?: number;
+  dueDate?: string;
+  notes?: string;
+  lines: DocumentLine[];
+}
+
+// --- Admin ---
+export async function getAdminDocuments(params?: Record<string, string>) {
+  const query = params ? '?' + new URLSearchParams(params).toString() : '';
+  return api.get<any>(`/admin/documents${query}`);
+}
+
+export async function getAdminDocument(id: string) {
+  return api.get<any>(`/admin/documents/${id}`);
+}
+
+export async function createDocument(data: CreateDocumentInput) {
+  return api.post<any>('/admin/documents', data);
+}
+
+export async function createDocumentFromBooking(data: { type: 'QUOTE' | 'INVOICE'; bookingId: string }) {
+  return api.post<any>('/admin/documents/from-booking', data);
+}
+
+export async function updateDocument(id: string, data: Partial<CreateDocumentInput>) {
+  return api.patch<any>(`/admin/documents/${id}`, data);
+}
+
+export async function updateDocumentStatus(id: string, status: string) {
+  return api.patch<any>(`/admin/documents/${id}/status`, { status });
+}
+
+export async function convertDocumentToInvoice(id: string) {
+  return api.post<any>(`/admin/documents/${id}/convert`);
+}
+
+export async function sendDocumentByEmail(id: string) {
+  return api.post<any>(`/admin/documents/${id}/send`);
+}
+
+export async function deleteDocument(id: string) {
+  return api.delete<any>(`/admin/documents/${id}`);
+}
+
+// --- Public (lien sécurisé par token) ---
+export async function getDocumentByToken(token: string) {
+  return api.get<any>(`/documents/${token}`);
+}
+
+/** Lien direct de téléchargement du PDF (proxifié vers l'API par Next rewrites). */
+export function documentPdfUrl(token: string) {
+  return `/api/documents/${token}/pdf`;
+}
+
+// ===========================================
+// Dépenses (gestion financière)
+// ===========================================
+
+export type ExpenseCategory =
+  | 'SUPPLIES'
+  | 'SALARIES'
+  | 'UTILITIES'
+  | 'MAINTENANCE'
+  | 'MARKETING'
+  | 'FOOD_BEVERAGE'
+  | 'RENT'
+  | 'TAXES'
+  | 'OTHER';
+
+export type ExpensePaymentMethod =
+  | 'CASH'
+  | 'BANK_TRANSFER'
+  | 'MOBILE_MONEY'
+  | 'CARD'
+  | 'CHECK'
+  | 'OTHER';
+
+export interface CreateExpenseInput {
+  category: ExpenseCategory;
+  description: string;
+  amount: number;
+  currency?: string;
+  expenseDate: string;
+  vendor?: string;
+  invoiceNumber?: string;
+  paymentMethod?: ExpensePaymentMethod;
+  receiptUrl?: string;
+  notes?: string;
+}
+
+export async function getAdminExpenses(params?: Record<string, string>) {
+  const query = params ? '?' + new URLSearchParams(params).toString() : '';
+  return api.get<any>(`/admin/expenses${query}`);
+}
+
+export async function getAdminExpense(id: string) {
+  return api.get<any>(`/admin/expenses/${id}`);
+}
+
+export async function createExpense(data: CreateExpenseInput) {
+  return api.post<any>('/admin/expenses', data);
+}
+
+export async function updateExpense(id: string, data: Partial<CreateExpenseInput>) {
+  return api.patch<any>(`/admin/expenses/${id}`, data);
+}
+
+export async function deleteExpense(id: string) {
+  return api.delete<any>(`/admin/expenses/${id}`);
+}
+
+/** Synthèse dépenses + bénéfice net pour le tableau de bord. */
+export async function getExpensesSummary(params?: Record<string, string>) {
+  const query = params ? '?' + new URLSearchParams(params).toString() : '';
+  return api.get<any>(`/admin/dashboard/expenses-summary${query}`);
+}

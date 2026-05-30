@@ -2,9 +2,90 @@ import { Injectable } from '@nestjs/common';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const PDFDocument = require('pdfkit');
 
+// ── Traductions FR / EN pour les reçus de réservation ──────────────────────
+const TRANSLATIONS = {
+  fr: {
+    title: 'Confirmation de Réservation',
+    clientInfo: 'Informations Client',
+    bookingDetails: 'Détails de la Réservation',
+    financialDetails: 'Détails Financiers',
+    name: 'Nom',
+    email: 'Email',
+    phone: 'Téléphone',
+    room: 'Chambre',
+    arrival: 'Arrivée',
+    departure: 'Départ',
+    nights: 'Nombre de nuits',
+    adults: 'Adultes',
+    children: 'Enfants',
+    baseAmount: 'Montant de base',
+    taxes: 'Taxes',
+    discount: 'Réduction',
+    paymentStatus: 'Statut paiement',
+    bookingStatus: 'Statut réservation',
+    tagline: "L'excellence de l'hospitalité à Conakry",
+    generatedOn: 'Document généré le',
+    at: 'à',
+    paymentStatuses: {
+      PAID: 'Payé',
+      PENDING: 'En attente',
+      PAY_AT_HOTEL: "Paiement à l'hôtel",
+      FAILED: 'Échoué',
+      REFUNDED: 'Remboursé',
+      INITIATED: 'En cours',
+    } as Record<string, string>,
+    bookingStatuses: {
+      PENDING: 'En attente',
+      CONFIRMED: 'Confirmée',
+      COMPLETED: 'Terminée',
+      CANCELLED: 'Annulée',
+      NO_SHOW: 'Non présenté',
+    } as Record<string, string>,
+  },
+  en: {
+    title: 'Booking Confirmation',
+    clientInfo: 'Client Information',
+    bookingDetails: 'Booking Details',
+    financialDetails: 'Financial Details',
+    name: 'Name',
+    email: 'Email',
+    phone: 'Phone',
+    room: 'Room',
+    arrival: 'Check-in',
+    departure: 'Check-out',
+    nights: 'Number of nights',
+    adults: 'Adults',
+    children: 'Children',
+    baseAmount: 'Base amount',
+    taxes: 'Taxes',
+    discount: 'Discount',
+    paymentStatus: 'Payment status',
+    bookingStatus: 'Booking status',
+    tagline: 'Excellence in hospitality in Conakry',
+    generatedOn: 'Document generated on',
+    at: 'at',
+    paymentStatuses: {
+      PAID: 'Paid',
+      PENDING: 'Pending',
+      PAY_AT_HOTEL: 'Pay at Hotel',
+      FAILED: 'Failed',
+      REFUNDED: 'Refunded',
+      INITIATED: 'Processing',
+    } as Record<string, string>,
+    bookingStatuses: {
+      PENDING: 'Pending',
+      CONFIRMED: 'Confirmed',
+      COMPLETED: 'Completed',
+      CANCELLED: 'Cancelled',
+      NO_SHOW: 'No Show',
+    } as Record<string, string>,
+  },
+};
+
 @Injectable()
 export class PdfService {
-  generateBookingReceipt(booking: any): Promise<Buffer> {
+  generateBookingReceipt(booking: any, lang = 'fr'): Promise<Buffer> {
+    const t = TRANSLATIONS[lang as keyof typeof TRANSLATIONS] ?? TRANSLATIONS.fr;
     return new Promise((resolve, reject) => {
       const doc = new PDFDocument({ size: 'A4', margin: 50 });
       const chunks: Buffer[] = [];
@@ -28,14 +109,14 @@ export class PdfService {
         .fontSize(11)
         .fillColor('#FFFFFF')
         .font('Helvetica')
-        .text("L'excellence de l'hospitalité à Conakry", 50, 70, { align: 'center' });
+        .text(t.tagline, 50, 70, { align: 'center' });
 
       // Title
       doc
         .fillColor('#071B33')
         .fontSize(18)
         .font('Helvetica-Bold')
-        .text('Confirmation de Réservation', 50, 145, { align: 'center' });
+        .text(t.title, 50, 145, { align: 'center' });
 
       doc.moveDown(1.5);
 
@@ -53,31 +134,33 @@ export class PdfService {
 
       doc.y = refY + 60;
 
+      const locale = lang === 'en' ? 'en-GB' : 'fr-FR';
+
       // Client info
-      this.addSection(doc, 'Informations Client');
-      this.addField(doc, 'Nom', booking.customerName);
-      this.addField(doc, 'Email', booking.customerEmail);
-      if (booking.customerPhone) this.addField(doc, 'Téléphone', booking.customerPhone);
+      this.addSection(doc, t.clientInfo);
+      this.addField(doc, t.name, booking.customerName);
+      this.addField(doc, t.email, booking.customerEmail);
+      if (booking.customerPhone) this.addField(doc, t.phone, booking.customerPhone);
 
       doc.moveDown(0.5);
 
       // Booking details
-      this.addSection(doc, 'Détails de la Réservation');
-      this.addField(doc, 'Chambre', booking.room?.name || 'N/A');
-      this.addField(doc, 'Arrivée', new Date(booking.checkInDate).toLocaleDateString('fr-FR'));
-      this.addField(doc, 'Départ', new Date(booking.checkOutDate).toLocaleDateString('fr-FR'));
-      this.addField(doc, 'Nombre de nuits', String(booking.nights));
-      this.addField(doc, 'Adultes', String(booking.adults));
-      this.addField(doc, 'Enfants', String(booking.children));
+      this.addSection(doc, t.bookingDetails);
+      this.addField(doc, t.room, booking.room?.name || 'N/A');
+      this.addField(doc, t.arrival, new Date(booking.checkInDate).toLocaleDateString(locale));
+      this.addField(doc, t.departure, new Date(booking.checkOutDate).toLocaleDateString(locale));
+      this.addField(doc, t.nights, String(booking.nights));
+      this.addField(doc, t.adults, String(booking.adults));
+      this.addField(doc, t.children, String(booking.children));
 
       doc.moveDown(0.5);
 
       // Financial
-      this.addSection(doc, 'Détails Financiers');
-      this.addField(doc, 'Montant de base', `${Number(booking.baseAmount).toLocaleString()} ${booking.currency}`);
-      this.addField(doc, 'Taxes', `${Number(booking.taxesAmount).toLocaleString()} ${booking.currency}`);
+      this.addSection(doc, t.financialDetails);
+      this.addField(doc, t.baseAmount, `${Number(booking.baseAmount).toLocaleString(locale)} ${booking.currency}`);
+      this.addField(doc, t.taxes, `${Number(booking.taxesAmount).toLocaleString(locale)} ${booking.currency}`);
       if (Number(booking.discountAmount) > 0) {
-        this.addField(doc, 'Réduction', `-${Number(booking.discountAmount).toLocaleString()} ${booking.currency}`);
+        this.addField(doc, t.discount, `-${Number(booking.discountAmount).toLocaleString(locale)} ${booking.currency}`);
       }
 
       doc.moveDown(0.3);
@@ -94,13 +177,16 @@ export class PdfService {
 
       doc.y = totalY + 50;
 
-      // Payment status
+      // Payment status — traduit
+      const payStatusLabel = t.paymentStatuses[booking.paymentStatus] ?? booking.paymentStatus;
+      const bookStatusLabel = t.bookingStatuses[booking.bookingStatus] ?? booking.bookingStatus;
+
       doc
         .fillColor('#071B33')
         .fontSize(11)
         .font('Helvetica')
-        .text(`Statut paiement : ${booking.paymentStatus}`, 50);
-      doc.text(`Statut réservation : ${booking.bookingStatus}`, 50);
+        .text(`${t.paymentStatus} : ${payStatusLabel}`, 50);
+      doc.text(`${t.bookingStatus} : ${bookStatusLabel}`, 50);
 
       // Footer
       doc.moveDown(2);
@@ -115,7 +201,7 @@ export class PdfService {
         .fillColor('#666')
         .text('Hotel SETIFANA - Conakry, République de Guinée', 50, doc.y, { align: 'center' })
         .text('Tél: +224 600 000 000 | Email: contact@setifana.com', { align: 'center' })
-        .text(`Document généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`, { align: 'center' });
+        .text(`${t.generatedOn} ${new Date().toLocaleDateString(locale)} ${t.at} ${new Date().toLocaleTimeString(locale)}`, { align: 'center' });
 
       doc.end();
     });

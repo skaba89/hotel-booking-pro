@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { getBookingByReference, api } from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { useTheme } from '@/lib/theme-provider';
 
 const TEST_MODE = process.env.NEXT_PUBLIC_PAYMENT_TEST_MODE === 'true';
 
@@ -19,6 +20,9 @@ export default function ConfirmationPage() {
   const [loading, setLoading] = useState(true);
   const [simulating, setSimulating] = useState(false);
   const [simMsg, setSimMsg] = useState('');
+  const { settings } = useTheme();
+  const whatsappPhone = (settings.hotel_whatsapp ?? '224666057620').replace(/[^0-9]/g, '');
+  const browserLang = typeof window !== 'undefined' && navigator.language.startsWith('en') ? 'en' : 'fr';
 
   const loadBooking = () =>
     getBookingByReference(reference).then(setBooking).catch(console.error).finally(() => setLoading(false));
@@ -132,7 +136,7 @@ export default function ConfirmationPage() {
 
               <div className="flex flex-col sm:flex-row gap-3">
                 <a
-                  href={`/api/invoices/${reference}/pdf`}
+                  href={`${process.env.NEXT_PUBLIC_API_URL || ''}/api/invoices/${reference}/pdf?lang=${browserLang}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex-1"
@@ -142,7 +146,16 @@ export default function ConfirmationPage() {
                     Télécharger PDF
                   </Button>
                 </a>
-                <a href="https://wa.me/224666057620" target="_blank" rel="noopener noreferrer" className="flex-1">
+                <a
+                  href={`https://wa.me/${whatsappPhone}?text=${encodeURIComponent(
+                    browserLang === 'en'
+                      ? `Hello, I have a question about my booking ${reference}`
+                      : `Bonjour, j'ai une question concernant ma réservation ${reference}`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1"
+                >
                   <Button variant="outline" className="w-full">
                     <MessageCircle className="w-4 h-4 mr-2" />
                     WhatsApp

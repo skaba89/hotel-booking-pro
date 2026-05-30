@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Res, NotFoundException, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Param, Query, Res, NotFoundException, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Throttle } from '@nestjs/throttler';
 import { Response } from 'express';
@@ -17,7 +17,11 @@ export class InvoicesController {
   @Public()
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Get('invoices/:bookingReference/pdf')
-  async downloadPdf(@Param('bookingReference') bookingReference: string, @Res() res: Response) {
+  async downloadPdf(
+    @Param('bookingReference') bookingReference: string,
+    @Query('lang') lang = 'fr',
+    @Res() res: Response,
+  ) {
     const booking = await this.prisma.booking.findUnique({
       where: { bookingReference },
       include: { room: true, invoices: true },
@@ -25,7 +29,8 @@ export class InvoicesController {
 
     if (!booking) throw new NotFoundException('Réservation non trouvée');
 
-    const pdfBuffer = await this.pdfService.generateBookingReceipt(booking);
+    const safeLang = ['fr', 'en'].includes(lang) ? lang : 'fr';
+    const pdfBuffer = await this.pdfService.generateBookingReceipt(booking, safeLang);
 
     res.set({
       'Content-Type': 'application/pdf',

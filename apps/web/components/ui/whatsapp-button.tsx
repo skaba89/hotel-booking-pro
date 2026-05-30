@@ -3,10 +3,14 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, X } from 'lucide-react';
+import { useTheme } from '@/lib/theme-provider';
 
 export function WhatsAppButton() {
   const [isOpen, setIsOpen] = useState(false);
-  const phone = '224666057620'; // Hotel WhatsApp number
+  const { settings } = useTheme();
+
+  // Numéro depuis les settings admin (fallback sur le numéro par défaut)
+  const phone = (settings.hotel_whatsapp ?? '224666057620').replace(/[^0-9]/g, '');
 
   const quickMessages = [
     'Bonjour, je souhaite réserver une chambre',

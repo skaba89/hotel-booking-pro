@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { CacheModule } from '@nestjs/cache-manager';
 import { APP_GUARD } from '@nestjs/core';
 import { join } from 'path';
 import { PrismaModule } from './prisma/prisma.module';
@@ -36,6 +37,10 @@ import { StaffModule } from './staff/staff.module';
       ttl: 60000,
       limit: 100,
     }]),
+    // In-memory response cache for public read-only routes.
+    // ttl = 60 s default (individual routes override with @CacheTTL).
+    // max = 1000 cache entries (LRU eviction above that).
+    CacheModule.register({ isGlobal: true, ttl: 60_000, max: 1000 }),
     PrismaModule,
     AuthModule,
     RoomsModule,

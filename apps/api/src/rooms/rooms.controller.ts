@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, UseInterceptors, UploadedFile, BadRequestException, Header } from '@nestjs/common';
+import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
 import { AuthGuard } from '@nestjs/passport';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -47,24 +48,36 @@ export class RoomsController {
 
   @Public()
   @Get('rooms')
+  @UseInterceptors(CacheInterceptor)
+  @CacheTTL(60_000)
+  @Header('Cache-Control', 'public, max-age=60, stale-while-revalidate=120')
   findAll(@Query() query: RoomQueryDto) {
     return this.roomsService.findAll(query);
   }
 
   @Public()
   @Get('rooms/featured')
+  @UseInterceptors(CacheInterceptor)
+  @CacheTTL(120_000)
+  @Header('Cache-Control', 'public, max-age=120, stale-while-revalidate=300')
   getFeatured() {
     return this.roomsService.getFeatured();
   }
 
   @Public()
   @Get('rooms/:slug')
+  @UseInterceptors(CacheInterceptor)
+  @CacheTTL(300_000)
+  @Header('Cache-Control', 'public, max-age=300, stale-while-revalidate=600')
   findBySlug(@Param('slug') slug: string) {
     return this.roomsService.findBySlug(slug);
   }
 
   @Public()
   @Get('availability')
+  @UseInterceptors(CacheInterceptor)
+  @CacheTTL(30_000)
+  @Header('Cache-Control', 'public, max-age=30, stale-while-revalidate=60')
   async checkAvailability(@Query() query: AvailabilityQueryDto) {
     const available = await this.roomsService.checkAvailability(
       query.roomId,

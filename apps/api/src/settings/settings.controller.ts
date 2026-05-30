@@ -1,7 +1,8 @@
 import {
   Controller, Get, Post, Patch, Body, UseGuards,
-  UseInterceptors, UploadedFile, BadRequestException,
+  UseInterceptors, UploadedFile, BadRequestException, Header,
 } from '@nestjs/common';
+import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
 import { AuthGuard } from '@nestjs/passport';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -41,6 +42,9 @@ export class SettingsController {
 
   @Public()
   @Get('settings/public')
+  @UseInterceptors(CacheInterceptor)
+  @CacheTTL(600_000)
+  @Header('Cache-Control', 'public, max-age=600, stale-while-revalidate=1200')
   async getPublicSettings() {
     const publicKeys = [
       // Hotel info

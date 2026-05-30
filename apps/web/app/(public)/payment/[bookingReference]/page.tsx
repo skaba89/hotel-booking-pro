@@ -3,13 +3,60 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { CreditCard, Smartphone, Building, Shield, Loader2 } from 'lucide-react';
+import { CreditCard, Smartphone, Building, Shield, Loader2, FlaskConical, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/components/ui/toast';
 import { getBookingByReference, createStripeSession, payAtHotel, initiateMobileMoney } from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/utils';
+
+const TEST_MODE = process.env.NEXT_PUBLIC_PAYMENT_TEST_MODE === 'true';
+
+const STRIPE_TEST_CARDS = [
+  { label: 'Visa (succès)', number: '4242 4242 4242 4242', expiry: '12/29', cvc: '123' },
+  { label: 'Mastercard (succès)', number: '5555 5555 5555 4444', expiry: '12/29', cvc: '123' },
+  { label: '3D Secure requis', number: '4000 0027 6000 3184', expiry: '12/29', cvc: '123' },
+  { label: 'Paiement refusé', number: '4000 0000 0000 9995', expiry: '12/29', cvc: '123' },
+];
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    navigator.clipboard.writeText(text.replace(/\s/g, ''));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+  return (
+    <button onClick={copy} className="ml-1 p-0.5 rounded hover:bg-yellow-200 transition-colors">
+      {copied ? <Check className="w-3 h-3 text-green-600" /> : <Copy className="w-3 h-3 text-yellow-700" />}
+    </button>
+  );
+}
+
+function StripeTestCards() {
+  return (
+    <div className="mt-4 rounded-lg border border-yellow-300 bg-yellow-50 p-4">
+      <div className="flex items-center gap-2 mb-3 text-yellow-800 font-semibold text-sm">
+        <FlaskConical className="w-4 h-4" />
+        Mode test — Cartes Stripe virtuelles
+      </div>
+      <div className="space-y-2">
+        {STRIPE_TEST_CARDS.map((c) => (
+          <div key={c.number} className="flex items-center justify-between text-xs bg-white rounded-md px-3 py-2 border border-yellow-200">
+            <span className="text-gray-500 w-36">{c.label}</span>
+            <div className="flex items-center gap-1 font-mono text-gray-800">
+              <span>{c.number}</span>
+              <CopyButton text={c.number} />
+            </div>
+            <span className="text-gray-400">{c.expiry} / {c.cvc}</span>
+          </div>
+        ))}
+      </div>
+      <p className="mt-2 text-xs text-yellow-700">Nom : n&apos;importe lequel — ZIP : 00000</p>
+    </div>
+  );
+}
 
 export default function PaymentPage() {
   const params = useParams();
@@ -145,6 +192,8 @@ export default function PaymentPage() {
                     />
                   </motion.div>
                 )}
+
+                {paymentMethod === 'stripe' && TEST_MODE && <StripeTestCards />}
 
                 <div className="mt-6">
                   {paymentMethod === 'stripe' && (

@@ -76,4 +76,15 @@ export class PaymentsController {
   payAtHotel(@Body() dto: BookingReferenceDto) {
     return this.paymentsService.payAtHotel(dto.bookingReference);
   }
+
+  /**
+   * Simulation de paiement Mobile Money pour les tests (test mode uniquement).
+   * Bloqué automatiquement en production via NODE_ENV.
+   */
+  @Public()
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @Post('payments/mobile-money/simulate')
+  simulateMobileMoneyConfirm(@Body() dto: BookingReferenceDto) {
+    return this.paymentsService.simulateMobileMoneyConfirm(dto.bookingReference);
+  }
 }

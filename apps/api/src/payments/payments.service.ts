@@ -225,6 +225,45 @@ export class PaymentsService {
     }
   }
 
+  /**
+   * Simulation de paiement Mobile Money (test uniquement — bloqué en production).
+   * Trouve le paiement PENDING le plus récent de la réservation et le confirme.
+   */
+  async simulateMobileMoneyConfirm(bookingReference: string) {
+    if (this.config.get<string>('NODE_ENV') === 'production') {
+      throw new BadRequestException('Simulation non disponible en production');
+    }
+
+    const booking = await this.prisma.booking.findUnique({
+      where: { bookingReference },
+    });
+    if (!booking) throw new NotFoundException('Réservation non trouvée');
+    if (booking.paymentStatus === 'PAID') {
+      throw new BadRequestException('Cette réservation est déjà payée');
+    }
+
+    const payment = await this.prisma.payment.findFirst({
+      where: {
+        bookingId: booking.id,
+        status: 'PENDING',
+        paymentMethod: { in: ['ORANGE_MONEY', 'MTN_MONEY', 'WAVE', 'MOBILE_MONEY'] as any[] },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!payment) {
+      throw new NotFoundException('Aucun paiement Mobile Money en attente pour cette réservation');
+    }
+
+    await this.confirmPayment(
+      bookingReference,
+      payment.provider ?? payment.paymentMethod.toLowerCase(),
+      'sim-test-' + Date.now(),
+    );
+
+    return { message: 'Paiement Mobile Money simulé avec succès' };
+  }
+
   async verifyPayPalOrder(orderId: string): Promise<boolean> {
     const clientId = this.config.get<string>('PAYPAL_CLIENT_ID');
     const clientSecret = this.config.get<string>('PAYPAL_CLIENT_SECRET');

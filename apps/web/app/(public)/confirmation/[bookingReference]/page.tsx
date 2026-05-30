@@ -4,21 +4,40 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { CheckCircle2, Download, Mail, MessageCircle, Calendar, CreditCard } from 'lucide-react';
+import { CheckCircle2, Download, MessageCircle, Calendar, CreditCard, FlaskConical, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { getBookingByReference } from '@/lib/api';
+import { getBookingByReference, api } from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/utils';
+
+const TEST_MODE = process.env.NEXT_PUBLIC_PAYMENT_TEST_MODE === 'true';
 
 export default function ConfirmationPage() {
   const params = useParams();
   const reference = params.bookingReference as string;
   const [booking, setBooking] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [simulating, setSimulating] = useState(false);
+  const [simMsg, setSimMsg] = useState('');
 
-  useEffect(() => {
+  const loadBooking = () =>
     getBookingByReference(reference).then(setBooking).catch(console.error).finally(() => setLoading(false));
-  }, [reference]);
+
+  useEffect(() => { loadBooking(); }, [reference]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleSimulateMobileMoney = async () => {
+    setSimulating(true);
+    setSimMsg('');
+    try {
+      const res = await api.post<{ message: string }>('/payments/mobile-money/simulate', { bookingReference: reference });
+      setSimMsg(res.message);
+      await loadBooking();
+    } catch (err: any) {
+      setSimMsg(err.message ?? 'Erreur lors de la simulation');
+    } finally {
+      setSimulating(false);
+    }
+  };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center">Chargement...</div>;
   if (!booking) return <div className="min-h-screen flex items-center justify-center">Réservation non trouvée</div>;
@@ -81,6 +100,35 @@ export default function ConfirmationPage() {
                   </span>
                 </div>
               </div>
+
+              {/* ── Simulation Mobile Money (test mode uniquement) ── */}
+              {TEST_MODE && !isPaid && booking.paymentStatus !== 'PAY_AT_HOTEL' && (
+                <div className="mb-4 rounded-lg border border-yellow-300 bg-yellow-50 p-4 text-left">
+                  <div className="flex items-center gap-2 mb-2 text-yellow-800 font-semibold text-sm">
+                    <FlaskConical className="w-4 h-4" />
+                    Mode test — Simuler réception Mobile Money
+                  </div>
+                  <p className="text-xs text-yellow-700 mb-3">
+                    Clique pour simuler la notification de paiement reçu depuis l&apos;opérateur mobile.
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-yellow-400 text-yellow-800 hover:bg-yellow-100"
+                    onClick={handleSimulateMobileMoney}
+                    disabled={simulating}
+                  >
+                    {simulating
+                      ? <><Loader2 className="animate-spin w-3 h-3 mr-2" />Simulation en cours…</>
+                      : <><FlaskConical className="w-3 h-3 mr-2" />Simuler paiement reçu</>}
+                  </Button>
+                  {simMsg && (
+                    <p className={`mt-2 text-xs font-medium ${simMsg.includes('succès') ? 'text-green-700' : 'text-red-600'}`}>
+                      {simMsg}
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div className="flex flex-col sm:flex-row gap-3">
                 <a

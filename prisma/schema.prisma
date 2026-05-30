@@ -3,17 +3,16 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  // url       = the pooler connection (PgBouncer) used by Prisma at runtime.
-  // directUrl = bypasses the pooler and goes direct — required for migrations.
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  // directUrl = env("DIRECT_DATABASE_URL")
   //
-  // Neon setup (Render env vars):
-  //   DATABASE_URL     = postgres://...@ep-xxx-pooler.region.aws.neon.tech/dbname?pgbouncer=true
-  //   DIRECT_DATABASE_URL = postgres://...@ep-xxx.region.aws.neon.tech/dbname
-  //
-  // Local dev: set both to the same direct connection string (no pooler needed).
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_DATABASE_URL")
+  // NEON POOLER (enable when ready):
+  //   1. In Render dashboard, add DIRECT_DATABASE_URL = your current DATABASE_URL (direct host).
+  //   2. Update DATABASE_URL to the Neon pooler endpoint (?pgbouncer=true).
+  //   3. Uncomment the directUrl line above and redeploy.
+  // This lets Prisma Migrate use the direct connection while runtime queries
+  // go through PgBouncer, eliminating "too many clients" errors at scale.
 }
 
 enum UserRole {

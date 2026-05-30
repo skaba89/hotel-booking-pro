@@ -128,6 +128,7 @@ export function ImageGallery({ images, roomName }: ImageGalleryProps) {
                   }`}
                   onClick={(e) => { e.stopPropagation(); setCurrentIndex(i); }}
                 >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={img.imageUrl} alt="" className="w-full h-full object-cover" />
                 </button>
               ))}

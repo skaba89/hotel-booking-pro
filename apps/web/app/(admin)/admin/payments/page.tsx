@@ -79,6 +79,7 @@ export default function AdminPaymentsPage() {
 
   useEffect(() => {
     loadPayments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSearch = () => {

@@ -35,6 +35,7 @@ export default function AdminRoomsPage() {
 
   useEffect(() => {
     loadRooms();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleDelete = async (id: string) => {

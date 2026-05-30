@@ -4,6 +4,13 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, Clock, TrendingUp, Users } from 'lucide-react';
 
+const SOCIAL_PROOF_MESSAGES = [
+  'Un client de Dakar vient de réserver une Suite Junior',
+  'Un client de Paris vient de réserver une Chambre Supérieure',
+  '3 personnes consultent nos chambres en ce moment',
+  'La Suite Présidentielle a été réservée 2 fois cette semaine',
+];
+
 export function SocialProofBadge({ roomId }: { roomId?: string }) {
   const [viewers, setViewers] = useState(0);
   const [bookingsToday, setBookingsToday] = useState(0);
@@ -67,23 +74,16 @@ export function SocialProofToast() {
   const [visible, setVisible] = useState(false);
   const [message, setMessage] = useState('');
 
-  const messages = [
-    'Un client de Dakar vient de réserver une Suite Junior',
-    'Un client de Paris vient de réserver une Chambre Supérieure',
-    '3 personnes consultent nos chambres en ce moment',
-    'La Suite Présidentielle a été réservée 2 fois cette semaine',
-  ];
-
   useEffect(() => {
     const interval = setInterval(() => {
-      setMessage(messages[Math.floor(Math.random() * messages.length)]);
+      setMessage(SOCIAL_PROOF_MESSAGES[Math.floor(Math.random() * SOCIAL_PROOF_MESSAGES.length)]);
       setVisible(true);
       setTimeout(() => setVisible(false), 5000);
     }, 25000);
 
     // Show first one after 8s
     const first = setTimeout(() => {
-      setMessage(messages[0]);
+      setMessage(SOCIAL_PROOF_MESSAGES[0]);
       setVisible(true);
       setTimeout(() => setVisible(false), 5000);
     }, 8000);

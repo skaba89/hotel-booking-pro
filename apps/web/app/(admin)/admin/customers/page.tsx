@@ -58,6 +58,7 @@ export default function AdminCustomersPage() {
 
   useEffect(() => {
     handleSearch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, customers]);
 
   const openCustomerDetail = async (customer: CustomerDto) => {

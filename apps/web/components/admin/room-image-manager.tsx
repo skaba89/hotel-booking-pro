@@ -203,6 +203,7 @@ export function RoomImageManager({ roomId, images, onImagesChange }: RoomImageMa
         <div className="grid grid-cols-3 gap-2">
           {images.map((img, index) => (
             <div key={img.id} className="relative group aspect-[4/3] rounded-lg overflow-hidden border bg-gray-50">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={img.imageUrl}
                 alt={img.altText || `Photo ${index + 1}`}

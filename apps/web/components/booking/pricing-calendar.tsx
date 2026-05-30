@@ -49,8 +49,11 @@ function getDatePrice(basePrice: number, date: Date): { price: number; level: 'l
 export function PricingCalendar({ basePrice, roomId, onDateSelect }: PricingCalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
 
   const daysInMonth = useMemo(() => {
     const year = currentMonth.getFullYear();
@@ -87,7 +90,7 @@ export function PricingCalendar({ basePrice, roomId, onDateSelect }: PricingCale
     }
 
     return days;
-  }, [currentMonth, basePrice]);
+  }, [currentMonth, basePrice, today]);
 
   const prevMonth = () => {
     const prev = new Date(currentMonth);

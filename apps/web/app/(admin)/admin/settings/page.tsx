@@ -267,6 +267,7 @@ export default function AdminSettingsPage() {
                 <div className="flex items-center gap-6">
                   <div className="w-24 h-24 bg-gray-100 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden">
                     {logoPreview ? (
+                      // eslint-disable-next-line @next/next/no-img-element
                       <img src={logoPreview} alt="Logo" className="w-full h-full object-contain p-2" />
                     ) : (
                       <Upload className="w-8 h-8 text-gray-400" />

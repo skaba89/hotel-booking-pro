@@ -22,6 +22,7 @@ import { PdfModule } from './pdf/pdf.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { ChatModule } from './chat/chat.module';
 import { StaffModule } from './staff/staff.module';
+import { CloudinaryModule } from './cloudinary/cloudinary.module';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { StaffModule } from './staff/staff.module';
     WebhooksModule,
     ChatModule,
     StaffModule,
+    CloudinaryModule,
   ],
   providers: [
     {

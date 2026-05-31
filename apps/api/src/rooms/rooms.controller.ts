@@ -2,33 +2,18 @@ import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Us
 import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
 import { AuthGuard } from '@nestjs/passport';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname, join } from 'path';
-import { existsSync, mkdirSync } from 'fs';
+import { memoryStorage } from 'multer';
+import { extname } from 'path';
 import { RoomsService } from './rooms.service';
 import { CreateRoomDto, UpdateRoomDto, RoomQueryDto, AvailabilityQueryDto, AddRoomImageDto } from './rooms.dto';
 import { Public, Roles } from '../common/decorators';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
-const uploadsDir = join(process.cwd(), 'uploads', 'rooms');
-if (!existsSync(uploadsDir)) {
-  mkdirSync(uploadsDir, { recursive: true });
-}
-
-const imageStorage = diskStorage({
-  destination: uploadsDir,
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e6);
-    const ext = extname(file.originalname).toLowerCase();
-    cb(null, `room-${uniqueSuffix}${ext}`);
-  },
-});
-
-const imageFilter = (req: any, file: Express.Multer.File, cb: any) => {
+const imageFilter = (_req: any, file: Express.Multer.File, cb: any) => {
   const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.avif'];
   const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
   const ext = extname(file.originalname).toLowerCase();
-
   if (allowedExtensions.includes(ext) && allowedMimeTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
@@ -38,7 +23,10 @@ const imageFilter = (req: any, file: Express.Multer.File, cb: any) => {
 
 @Controller()
 export class RoomsController {
-  constructor(private roomsService: RoomsService) {}
+  constructor(
+    private roomsService: RoomsService,
+    private cloudinary: CloudinaryService,
+  ) {}
 
   @Public()
   @Get('health')
@@ -118,14 +106,14 @@ export class RoomsController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('ADMIN', 'STAFF')
   @Post('admin/rooms/:id/upload')
-  @UseInterceptors(FileInterceptor('image', { storage: imageStorage, fileFilter: imageFilter, limits: { fileSize: 5 * 1024 * 1024 } }))
+  @UseInterceptors(FileInterceptor('image', { storage: memoryStorage(), fileFilter: imageFilter, limits: { fileSize: 5 * 1024 * 1024 } }))
   async uploadImage(
     @Param('id') id: string,
     @UploadedFile() file: Express.Multer.File,
     @Body() body: { altText?: string },
   ) {
     if (!file) throw new BadRequestException('Aucun fichier fourni');
-    const imageUrl = `/uploads/rooms/${file.filename}`;
+    const imageUrl = await this.cloudinary.store(file.buffer, 'hotel/rooms', file.originalname);
     return this.roomsService.addImage(id, imageUrl, body.altText);
   }
 

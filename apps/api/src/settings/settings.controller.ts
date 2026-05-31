@@ -6,25 +6,12 @@ import { CacheInterceptor, CacheTTL, CACHE_MANAGER } from '@nestjs/cache-manager
 import type { Cache } from 'cache-manager';
 import { AuthGuard } from '@nestjs/passport';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname, join } from 'path';
-import { existsSync, mkdirSync } from 'fs';
+import { memoryStorage } from 'multer';
+import { extname } from 'path';
 import { PrismaService } from '../prisma/prisma.service';
 import { Public, Roles } from '../common/decorators';
 import { RolesGuard } from '../common/guards/roles.guard';
-
-const uploadsDir = join(process.cwd(), 'uploads', 'branding');
-if (!existsSync(uploadsDir)) {
-  mkdirSync(uploadsDir, { recursive: true });
-}
-
-const logoStorage = diskStorage({
-  destination: uploadsDir,
-  filename: (_req, file, cb) => {
-    const ext = extname(file.originalname).toLowerCase();
-    cb(null, `logo-${Date.now()}${ext}`);
-  },
-});
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
 const imageFilter = (_req: any, file: Express.Multer.File, cb: any) => {
   const allowed = ['.jpg', '.jpeg', '.png', '.webp', '.svg'];
@@ -42,6 +29,7 @@ export class SettingsController {
   constructor(
     private prisma: PrismaService,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    private cloudinary: CloudinaryService,
   ) {}
 
   @Public()
@@ -95,25 +83,25 @@ export class SettingsController {
     await Promise.all(updates);
     // Invalider le cache de la route publique pour que les couleurs/paramètres
     // soient immédiatement visibles sur le site sans attendre l'expiration du cache.
-    try { await this.cacheManager.reset(); } catch { /* ignore */ }
+    try { await (this.cacheManager as any).reset?.(); } catch { /* ignore */ }
     return { message: 'Parametres mis a jour' };
   }
 
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('ADMIN')
   @Post('admin/settings/logo')
-  @UseInterceptors(FileInterceptor('logo', { storage: logoStorage, fileFilter: imageFilter, limits: { fileSize: 5 * 1024 * 1024 } }))
+  @UseInterceptors(FileInterceptor('logo', { storage: memoryStorage(), fileFilter: imageFilter, limits: { fileSize: 5 * 1024 * 1024 } }))
   async uploadLogo(@UploadedFile() file: Express.Multer.File) {
     if (!file) throw new BadRequestException('Aucun fichier envoye');
 
-    const logoUrl = `/uploads/branding/${file.filename}`;
+    const logoUrl = await this.cloudinary.store(file.buffer, 'hotel/branding', file.originalname);
     await this.prisma.setting.upsert({
       where: { key: 'theme_logo_url' },
       update: { value: logoUrl },
       create: { key: 'theme_logo_url', value: logoUrl, type: 'string' },
     });
 
-    try { await this.cacheManager.reset(); } catch { /* ignore */ }
+    try { await (this.cacheManager as any).reset?.(); } catch { /* ignore */ }
     return { url: logoUrl, message: 'Logo mis a jour' };
   }
 }

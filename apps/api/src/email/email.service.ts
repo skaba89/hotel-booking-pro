@@ -100,9 +100,9 @@ export class EmailService {
     const isQuote = document.type === 'QUOTE';
     const label = isQuote ? 'Devis' : 'Facture';
     const filenameLabel = isQuote ? 'devis' : 'facture';
-    const siteUrl = this.config.get<string>('SITE_URL')
-      || this.config.get<string>('NEXT_PUBLIC_SITE_URL')
-      || 'https://hotel-setifana-conakry.netlify.app';
+    const siteUrl = this.config.get<string>('NEXT_PUBLIC_SITE_URL')
+      || this.config.get<string>('SITE_URL')
+      || 'https://setifana-hotel-conakry.netlify.app';
     const viewUrl = `${siteUrl}/documents/${document.publicToken}`;
     const html = this.buildDocumentEmail(document, label, viewUrl);
     await this.send(

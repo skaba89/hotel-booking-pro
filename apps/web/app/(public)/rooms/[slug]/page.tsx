@@ -1,18 +1,14 @@
 import type { Metadata } from 'next';
-import { getRoomBySlug } from '@/lib/api';
+import { serverGetRoom } from '@/lib/server-api';
 import { RoomDetailClient, amenityLabels } from './room-detail-client';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://hotel-setifana-conakry.netlify.app';
 
-// Données fraîches à chaque requête (prix/dispo peuvent changer côté admin).
-export const dynamic = 'force-dynamic';
+// ISR: room data cached 5 min — fast enough for availability, still near-instant
+export const revalidate = 300;
 
 async function fetchRoom(slug: string): Promise<any | null> {
-  try {
-    return await getRoomBySlug(slug);
-  } catch {
-    return null;
-  }
+  return serverGetRoom(slug);
 }
 
 function parseAmenities(room: any): string[] {
@@ -37,15 +33,16 @@ function parseImages(room: any): string[] {
   return [];
 }
 
-export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
-  const room = await fetchRoom(params.slug);
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug: _slug } = await params;
+  const room = await fetchRoom(_slug);
   if (!room) {
     return { title: 'Chambre non trouvée — Hotel SETIFANA' };
   }
   const title = `${room.name} — Hotel SETIFANA Conakry`;
   const description = (room.description || '').slice(0, 160);
   const images = parseImages(room);
-  const url = `${siteUrl}/rooms/${params.slug}`;
+  const url = `${siteUrl}/rooms/${_slug}`;
   return {
     title,
     description,
@@ -66,8 +63,8 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   };
 }
 
-export default async function RoomDetailPage({ params }: { params: { slug: string } }) {
-  const { slug } = params;
+export default async function RoomDetailPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
   const room = await fetchRoom(slug);
 
   let jsonLd: Record<string, any> | null = null;

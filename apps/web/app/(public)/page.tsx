@@ -8,6 +8,9 @@ import { LocationSection } from '@/components/layout/location-section';
 import { CTASection } from '@/components/layout/cta-section';
 import { NewsletterSection } from '@/components/ui/newsletter';
 import { StatsCounter } from '@/components/ui/stats-counter';
+import { serverGetFeaturedRooms } from '@/lib/server-api';
+
+export const revalidate = 120; // ISR: home page cached for 2 min
 
 export const metadata: Metadata = {
   title: 'Hotel SETIFANA - Hotel de luxe a Conakry, Guinee',
@@ -22,13 +25,16 @@ export const metadata: Metadata = {
   },
 };
 
-export default function HomePage() {
+export default async function HomePage() {
+  // Fetch featured rooms server-side — baked into the pre-rendered HTML
+  const featuredRooms = await serverGetFeaturedRooms();
+
   return (
     <>
       <HeroSection />
       <SearchFormAdvanced />
       <StatsCounter />
-      <FeaturedRooms />
+      <FeaturedRooms rooms={featuredRooms} />
       <ServicesPreview />
       <TestimonialsSection />
       <LocationSection />

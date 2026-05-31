@@ -26,7 +26,13 @@ export class RoomsService {
     const [rooms, total] = await Promise.all([
       this.prisma.room.findMany({
         where,
-        include: { images: { orderBy: { sortOrder: 'asc' } } },
+        // Select only fields needed for listing — avoids sending large description/amenities JSON over the wire
+        select: {
+          id: true, name: true, slug: true, shortDescription: true,
+          pricePerNight: true, capacity: true, sizeM2: true,
+          bedType: true, status: true, isFeatured: true, createdAt: true,
+          images: { select: { imageUrl: true, altText: true }, orderBy: { sortOrder: 'asc' }, take: 1 },
+        },
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit,

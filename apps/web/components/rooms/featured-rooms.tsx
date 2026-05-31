@@ -1,23 +1,27 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+/**
+ * FeaturedRooms — Client Component
+ *
+ * Receives `rooms` as a prop so it can be used by a parent Server Component
+ * that fetches data server-side (ISR). No useEffect fetch — data is already there.
+ */
+
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Users, Maximize, BedDouble } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { getFeaturedRooms } from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
 import { useTranslation } from '@/lib/i18n/provider';
 import { RoomImage } from '@/components/rooms/room-image';
 
-export function FeaturedRooms() {
-  const [rooms, setRooms] = useState<any[]>([]);
-  const { t } = useTranslation();
+interface FeaturedRoomsProps {
+  rooms: any[];
+}
 
-  useEffect(() => {
-    getFeaturedRooms().then(setRooms).catch(console.error);
-  }, []);
+export function FeaturedRooms({ rooms }: FeaturedRoomsProps) {
+  const { t } = useTranslation();
 
   return (
     <section className="py-20 bg-secondary">
@@ -102,8 +106,16 @@ export function FeaturedRooms() {
         </div>
 
         {rooms.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">{t('general.loading')}</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-white rounded-xl overflow-hidden shadow">
+                <div className="h-56 bg-gray-100 animate-pulse" />
+                <div className="p-5 space-y-3">
+                  <div className="h-5 w-2/3 bg-gray-100 animate-pulse rounded" />
+                  <div className="h-4 w-full bg-gray-100 animate-pulse rounded" />
+                </div>
+              </div>
+            ))}
           </div>
         )}
 

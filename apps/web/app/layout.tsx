@@ -33,6 +33,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
         <meta name="theme-color" content="#071B33" />
         <link rel="manifest" href="/manifest.json" />
+
+        {/* PWA / Apple mobile */}
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="SETIFANA" />
+        <link rel="apple-touch-icon" href="/images/hotel/hero-main.jpg" />
+        <link rel="apple-touch-icon" sizes="152x152" href="/images/hotel/hero-main.jpg" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/images/hotel/hero-main.jpg" />
+        <link rel="apple-touch-icon" sizes="167x167" href="/images/hotel/hero-main.jpg" />
+
+        {/* Microsoft Tiles */}
+        <meta name="msapplication-TileColor" content="#071B33" />
+        <meta name="msapplication-tap-highlight" content="no" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{

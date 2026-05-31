@@ -1,14 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Search, Eye, X, Mail, Phone, MapPin, Calendar, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
+import { Pagination } from '@/components/ui/pagination';
 import { AdminLayout } from '@/components/admin/admin-layout';
 import { api } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
 import type { CustomerDto, BookingDto, PaginatedResponse } from '@hotel-booking/shared';
+
+const PAGE_SIZE = 15;
 
 export default function AdminCustomersPage() {
   const [customers, setCustomers] = useState<CustomerDto[]>([]);
@@ -18,11 +21,12 @@ export default function AdminCustomersPage() {
   const [viewCustomer, setViewCustomer] = useState<CustomerDto | null>(null);
   const [customerBookings, setCustomerBookings] = useState<BookingDto[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
+  const [page, setPage] = useState(1);
 
   const loadCustomers = async () => {
     setLoading(true);
     try {
-      const res = await api.get<PaginatedResponse<CustomerDto> | CustomerDto[]>('/admin/customers?limit=100');
+      const res = await api.get<PaginatedResponse<CustomerDto> | CustomerDto[]>('/admin/customers?limit=500');
       const list = Array.isArray(res) ? res : res?.data || [];
       setCustomers(list);
       setFilteredCustomers(list);
@@ -40,6 +44,7 @@ export default function AdminCustomersPage() {
   }, []);
 
   const handleSearch = () => {
+    setPage(1);
     if (!search.trim()) {
       setFilteredCustomers(customers);
       return;
@@ -60,6 +65,11 @@ export default function AdminCustomersPage() {
     handleSearch();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, customers]);
+
+  const pagedCustomers = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return filteredCustomers.slice(start, start + PAGE_SIZE);
+  }, [filteredCustomers, page]);
 
   const openCustomerDetail = async (customer: CustomerDto) => {
     setViewCustomer(customer);
@@ -162,7 +172,7 @@ export default function AdminCustomersPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {filteredCustomers.map((c) => (
+                  {pagedCustomers.map((c) => (
                     <tr key={c.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
@@ -198,6 +208,16 @@ export default function AdminCustomersPage() {
                 </div>
               )}
             </div>
+            {filteredCustomers.length > PAGE_SIZE && (
+              <div className="px-4 pb-4">
+                <Pagination
+                  page={page}
+                  pageSize={PAGE_SIZE}
+                  total={filteredCustomers.length}
+                  onPageChange={setPage}
+                />
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

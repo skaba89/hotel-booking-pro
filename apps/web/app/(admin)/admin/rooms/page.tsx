@@ -1,16 +1,19 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { Plus, Edit, Trash2, X, Save, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
+import { Pagination } from '@/components/ui/pagination';
 import { AdminLayout } from '@/components/admin/admin-layout';
 import { RoomImageManager } from '@/components/admin/room-image-manager';
 import { useToast } from '@/components/ui/toast';
 import { getRooms, api } from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
+
+const PAGE_SIZE = 10;
 
 export default function AdminRoomsPage() {
   const { toast } = useToast();
@@ -19,6 +22,12 @@ export default function AdminRoomsPage() {
   const [editRoom, setEditRoom] = useState<any>(null);
   const [editForm, setEditForm] = useState<any>({});
   const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(1);
+
+  const pagedRooms = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return rooms.slice(start, start + PAGE_SIZE);
+  }, [rooms, page]);
 
   const loadRooms = () => {
     setLoading(true);
@@ -115,7 +124,7 @@ export default function AdminRoomsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {rooms.map((room) => (
+                  {pagedRooms.map((room) => (
                     <tr key={room.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3">
                         <div className="font-medium text-gray-900">{room.name}</div>
@@ -153,6 +162,11 @@ export default function AdminRoomsPage() {
               {loading && <div className="text-center py-8 text-gray-500">Chargement...</div>}
               {!loading && rooms.length === 0 && <div className="text-center py-8 text-gray-500">Aucune chambre. Cliquez sur &quot;Ajouter&quot; pour commencer.</div>}
             </div>
+            {rooms.length > PAGE_SIZE && (
+              <div className="px-4 pb-4">
+                <Pagination page={page} pageSize={PAGE_SIZE} total={rooms.length} onPageChange={setPage} />
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

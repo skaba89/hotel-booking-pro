@@ -1,14 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Search, Eye, X, CreditCard, Banknote, Smartphone, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
+import { Pagination } from '@/components/ui/pagination';
 import { AdminLayout } from '@/components/admin/admin-layout';
 import { useToast } from '@/components/ui/toast';
 import { api } from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/utils';
+
+const PAGE_SIZE = 12;
 
 const statusColors: Record<string, string> = {
   SUCCESS: 'bg-green-100 text-green-800',
@@ -40,6 +43,12 @@ export default function AdminPaymentsPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [viewPayment, setViewPayment] = useState<any>(null);
   const [stats, setStats] = useState({ total: 0, success: 0, pending: 0, failed: 0 });
+  const [page, setPage] = useState(1);
+
+  const pagedPayments = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return payments.slice(start, start + PAGE_SIZE);
+  }, [payments, page]);
 
   const loadPayments = async () => {
     setLoading(true);
@@ -197,7 +206,7 @@ export default function AdminPaymentsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {payments.map((p) => (
+                  {pagedPayments.map((p) => (
                     <tr key={p.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 font-mono text-xs text-gray-500">
                         {p.id?.slice(0, 8)}...
@@ -249,6 +258,11 @@ export default function AdminPaymentsPage() {
                 <div className="text-center py-8 text-gray-500">Aucun paiement trouve</div>
               )}
             </div>
+            {payments.length > PAGE_SIZE && (
+              <div className="px-4 pb-4">
+                <Pagination page={page} pageSize={PAGE_SIZE} total={payments.length} onPageChange={setPage} />
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

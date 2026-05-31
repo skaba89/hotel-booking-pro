@@ -1,16 +1,60 @@
 {
-  "name": "Hotel SETIFANA - Hotel de luxe a Conakry",
+  "name": "Hotel SETIFANA – Hôtel de luxe à Conakry",
   "short_name": "SETIFANA",
-  "description": "Reservez votre sejour a l'Hotel SETIFANA, hotel de luxe a Conakry, Guinee.",
-  "start_url": "/",
+  "description": "Réservez votre séjour à l'Hôtel SETIFANA, hôtel de luxe à Conakry, Guinée.",
+  "start_url": "/?utm_source=pwa",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait-primary",
   "background_color": "#ffffff",
   "theme_color": "#071B33",
+  "categories": ["travel", "business", "lifestyle"],
+  "lang": "fr",
+  "dir": "ltr",
   "icons": [
     {
       "src": "/images/hotel/hero-main.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/hotel/hero-main.jpg",
       "sizes": "512x512",
-      "type": "image/jpeg"
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Réserver une chambre",
+      "short_name": "Réserver",
+      "description": "Consultez nos chambres disponibles",
+      "url": "/rooms?utm_source=pwa_shortcut",
+      "icons": [{ "src": "/images/hotel/hero-main.jpg", "sizes": "96x96" }]
+    },
+    {
+      "name": "Contact",
+      "short_name": "Contact",
+      "description": "Contactez l'hôtel",
+      "url": "/contact?utm_source=pwa_shortcut",
+      "icons": [{ "src": "/images/hotel/hero-main.jpg", "sizes": "96x96" }]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/images/hotel/hero-main.jpg",
+      "sizes": "1280x720",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "Accueil Hotel SETIFANA"
+    },
+    {
+      "src": "/images/hotel/hero-main.jpg",
+      "sizes": "390x844",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Accueil mobile Hotel SETIFANA"
     }
   ]
 }

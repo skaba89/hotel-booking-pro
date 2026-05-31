@@ -48,9 +48,15 @@ export class EmailService {
       this.gmailTransporter = nodemailer.createTransport({
         service: 'gmail',
         auth: { user: gmailUser, pass: gmailPass },
+        // Prevent the SMTP connection from hanging indefinitely on Render free tier
+        connectionTimeout: 8_000,  // 8s max to connect
+        socketTimeout:     12_000, // 12s max for socket inactivity
+        greetingTimeout:   5_000,  // 5s max for server greeting
       });
       this._provider = 'gmail';
-      this.from = this.config.get<string>('EMAIL_FROM', `Hotel SETIFANA <${gmailUser}>`);
+      // Gmail SMTP rejects FROM addresses that don't match the authenticated account.
+      // Always use the Gmail address, never an external "from" override.
+      this.from = `Hotel SETIFANA <${gmailUser}>`;
       this.logger.log(`Gmail SMTP configuré — envoi depuis ${this.from}`);
     } else {
       const resendKey = this.config.get<string>('RESEND_API_KEY');
@@ -211,6 +217,7 @@ export class EmailService {
 
   private async send(to: string, subject: string, html: string, attachments?: EmailAttachment[]) {
     if (this._provider === 'gmail') {
+      // May throw — let the caller decide whether to catch or propagate
       await this.sendViaGmail(to, subject, html, attachments);
     } else if (this._provider === 'resend') {
       await this.sendViaResend(to, subject, html, attachments);
@@ -221,7 +228,8 @@ export class EmailService {
 
   private async sendViaGmail(to: string, subject: string, html: string, attachments?: EmailAttachment[]) {
     if (!this.gmailTransporter) return;
-    const maxAttempts = 3;
+    const maxAttempts = 2; // reduced to 2 to avoid Render 30s timeout
+    let lastError: any;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         await this.gmailTransporter.sendMail({
@@ -234,13 +242,16 @@ export class EmailService {
         this.logger.log(`[Gmail] Email envoyé: ${subject} -> ${to}`);
         return;
       } catch (error: any) {
-        if (attempt === maxAttempts) {
-          this.logger.error(`[Gmail] Échec après ${maxAttempts} tentatives: ${subject} -> ${to}`, error);
-          return;
+        lastError = error;
+        this.logger.warn(`[Gmail] Tentative ${attempt}/${maxAttempts} échouée: ${error?.message}`);
+        if (attempt < maxAttempts) {
+          await new Promise((r) => setTimeout(r, 500));
         }
-        await new Promise((r) => setTimeout(r, 500 * 2 ** (attempt - 1)));
       }
     }
+    // Re-throw so callers (e.g. sendTestEmail) can catch and report the real error
+    this.logger.error(`[Gmail] Échec après ${maxAttempts} tentatives: ${subject} -> ${to}`, lastError);
+    throw lastError;
   }
 
   private async sendViaResend(to: string, subject: string, html: string, attachments?: EmailAttachment[]) {

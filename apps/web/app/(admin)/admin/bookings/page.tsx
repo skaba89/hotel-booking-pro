@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Search, Download, Eye, X, CheckCircle, XCircle, Clock, UserCheck, AlertTriangle, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
+import { Pagination } from '@/components/ui/pagination';
 import { AdminLayout } from '@/components/admin/admin-layout';
 import { useToast } from '@/components/ui/toast';
 import { getAdminBookings, updateBookingStatus, api } from '@/lib/api';
@@ -40,6 +41,8 @@ const paymentLabels: Record<string, string> = {
   PAY_AT_HOTEL: 'A l\'hotel',
 };
 
+const PAGE_SIZE = 12;
+
 export default function AdminBookingsPage() {
   const { toast } = useToast();
   const [bookings, setBookings] = useState<any[]>([]);
@@ -48,6 +51,7 @@ export default function AdminBookingsPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [viewBooking, setViewBooking] = useState<any>(null);
   const [actionLoading, setActionLoading] = useState('');
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     loadBookings();
@@ -56,8 +60,9 @@ export default function AdminBookingsPage() {
 
   const loadBookings = async () => {
     setLoading(true);
+    setPage(1); // reset to first page on reload/filter
     try {
-      const params: Record<string, string> = { limit: '50' };
+      const params: Record<string, string> = { limit: '200' };
       if (search) params.search = search;
       if (statusFilter) params.status = statusFilter;
       const data = await getAdminBookings(params);
@@ -68,6 +73,11 @@ export default function AdminBookingsPage() {
       setLoading(false);
     }
   };
+
+  const pagedBookings = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return bookings.slice(start, start + PAGE_SIZE);
+  }, [bookings, page]);
 
   const handleStatusChange = async (id: string, status: string, reason?: string) => {
     setActionLoading(id + status);
@@ -190,8 +200,58 @@ export default function AdminBookingsPage() {
           </CardContent>
         </Card>
 
-        {/* Bookings Table */}
-        <Card>
+        {/* Bookings — mobile cards (sm and below) */}
+        <div className="md:hidden space-y-3">
+          {pagedBookings.map((b) => (
+            <Card key={b.id} className="overflow-hidden">
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div>
+                    <p className="font-medium text-gray-900 text-sm">{b.customerName}</p>
+                    <p className="text-xs text-gray-500">{b.customerEmail}</p>
+                  </div>
+                  <span className={`text-xs px-2 py-1 rounded-full font-medium shrink-0 ${statusColors[b.bookingStatus] || ''}`}>
+                    {statusLabels[b.bookingStatus] || b.bookingStatus}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600 mb-3">
+                  <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded">{b.bookingReference}</span>
+                  <span>{b.room?.name || '-'}</span>
+                  <span className="font-bold text-gray-900">{formatCurrency(Number(b.totalAmount))}</span>
+                  <span>{formatDate(b.checkInDate)} → {formatDate(b.checkOutDate)}</span>
+                  <span className={`px-1.5 py-0.5 rounded-full ${paymentColors[b.paymentStatus] || ''}`}>
+                    {paymentLabels[b.paymentStatus] || b.paymentStatus}
+                  </span>
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" className="h-8 text-xs flex-1" onClick={() => setViewBooking(b)}>
+                    <Eye className="w-3 h-3 mr-1" />Voir
+                  </Button>
+                  {b.bookingStatus === 'PENDING' && (
+                    <Button
+                      size="sm"
+                      variant="gold"
+                      className="h-8 text-xs flex-1"
+                      disabled={actionLoading === b.id + 'CONFIRMED'}
+                      onClick={() => handleStatusChange(b.id, 'CONFIRMED')}
+                    >
+                      <CheckCircle className="w-3 h-3 mr-1" />
+                      {actionLoading === b.id + 'CONFIRMED' ? '...' : 'Confirmer'}
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+          {loading && <div className="text-center py-8 text-gray-500">Chargement...</div>}
+          {!loading && bookings.length === 0 && <div className="text-center py-8 text-gray-500">Aucune reservation trouvee</div>}
+          {bookings.length > PAGE_SIZE && (
+            <Pagination page={page} pageSize={PAGE_SIZE} total={bookings.length} onPageChange={setPage} />
+          )}
+        </div>
+
+        {/* Bookings Table — desktop (md and above) */}
+        <Card className="hidden md:block">
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -208,7 +268,7 @@ export default function AdminBookingsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {bookings.map((b) => (
+                  {pagedBookings.map((b) => (
                     <tr key={b.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3">
                         <span className="font-mono text-xs bg-gray-100 px-2 py-0.5 rounded">{b.bookingReference}</span>
@@ -264,6 +324,17 @@ export default function AdminBookingsPage() {
                 <div className="text-center py-8 text-gray-500">Aucune reservation trouvee</div>
               )}
             </div>
+            {/* Pagination */}
+            {bookings.length > PAGE_SIZE && (
+              <div className="px-4 pb-4">
+                <Pagination
+                  page={page}
+                  pageSize={PAGE_SIZE}
+                  total={bookings.length}
+                  onPageChange={setPage}
+                />
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

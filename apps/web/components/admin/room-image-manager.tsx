@@ -209,7 +209,10 @@ export function RoomImageManager({ roomId, images, onImagesChange }: RoomImageMa
                 alt={img.altText || `Photo ${index + 1}`}
                 className="w-full h-full object-cover"
                 onError={(e) => {
-                  (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2YzZjRmNiIvPjx0ZXh0IHg9IjUwIiB5PSI1MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIGZpbGw9IiM5Y2EzYWYiIGZvbnQtc2l6ZT0iMTIiPk5vIGltYWdlPC90ZXh0Pjwvc3ZnPg==';
+                  const el = e.currentTarget as HTMLImageElement;
+                  if (!el.src.includes('/images/rooms/room-1.webp')) {
+                    el.src = '/images/rooms/room-1.webp';
+                  }
                 }}
               />
               {/* Overlay */}

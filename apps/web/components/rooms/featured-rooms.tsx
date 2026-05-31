@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { Users, Maximize, BedDouble } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -10,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { getFeaturedRooms } from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
 import { useTranslation } from '@/lib/i18n/provider';
+import { RoomImage } from '@/components/rooms/room-image';
 
 export function FeaturedRooms() {
   const [rooms, setRooms] = useState<any[]>([]);
@@ -43,19 +43,12 @@ export function FeaturedRooms() {
               <Card className="overflow-hidden group hover:shadow-lg transition-shadow duration-300">
                 <div className="relative h-56 bg-muted overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent z-10" />
-                  {room.images?.[0] ? (
-                    <Image
-                      src={room.images[0].imageUrl}
-                      alt={room.images[0].altText || room.name}
-                      fill
-                      className="object-cover group-hover:scale-105 transition-transform duration-500"
-                      sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-primary/10 flex items-center justify-center">
-                      <BedDouble className="w-16 h-16 text-gold/30" />
-                    </div>
-                  )}
+                  <RoomImage
+                    src={room.images?.[0]?.imageUrl || ''}
+                    alt={room.images?.[0]?.altText || room.name}
+                    className="object-cover group-hover:scale-105 transition-transform duration-500"
+                    sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                  />
                   <div className="absolute bottom-3 left-3 z-20">
                     <span className="bg-gold text-white text-xs px-2 py-1 rounded">
                       {t('rooms.from')} {formatCurrency(Number(room.pricePerNight))}{t('rooms.night')}

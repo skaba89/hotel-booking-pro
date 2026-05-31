@@ -12,6 +12,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { Public, Roles } from '../common/decorators';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
+import { EmailService } from '../email/email.service';
 
 const imageFilter = (_req: any, file: Express.Multer.File, cb: any) => {
   const allowed = ['.jpg', '.jpeg', '.png', '.webp', '.svg'];
@@ -30,6 +31,7 @@ export class SettingsController {
     private prisma: PrismaService,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
     private cloudinary: CloudinaryService,
+    private email: EmailService,
   ) {}
 
   @Public()
@@ -103,5 +105,83 @@ export class SettingsController {
 
     try { await (this.cacheManager as any).reset?.(); } catch { /* ignore */ }
     return { url: logoUrl, message: 'Logo mis a jour' };
+  }
+
+  /**
+   * GET /api/admin/settings/services-status
+   * Vérifie l'état des services externes (Cloudinary + Resend) sans rien envoyer.
+   * Accessible admin uniquement — utile pour diagnostiquer rapidement.
+   */
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('ADMIN')
+  @Get('admin/settings/services-status')
+  getServicesStatus() {
+    return {
+      cloudinary: {
+        enabled: this.cloudinary.isEnabled,
+        status: this.cloudinary.isEnabled ? 'ok' : 'non_configure',
+        message: this.cloudinary.isEnabled
+          ? 'CLOUDINARY_URL détecté — uploads persistants actifs'
+          : 'CLOUDINARY_URL absent sur Render → ajouter la variable (format: cloudinary://API_KEY:API_SECRET@CLOUD_NAME)',
+      },
+      resend: {
+        enabled: this.email.isEnabled,
+        from: this.email.fromAddress,
+        status: this.email.isEnabled ? 'ok' : 'non_configure',
+        message: this.email.isEnabled
+          ? `Resend actif — envoi depuis "${this.email.fromAddress}"`
+          : 'RESEND_API_KEY absent sur Render → ajouter la variable',
+      },
+    };
+  }
+
+  /**
+   * POST /api/admin/settings/test-email
+   * Envoie un email de test à l'adresse fournie (ou à l'admin par défaut).
+   * Body: { to?: string }
+   */
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('ADMIN')
+  @Post('admin/settings/test-email')
+  async testEmail(@Body() body: { to?: string }) {
+    const to = body.to || this.email.adminEmail;
+    const result = await this.email.sendTestEmail(to);
+    return result;
+  }
+
+  /**
+   * POST /api/admin/settings/test-cloudinary
+   * Upload un pixel 1×1 transparent vers Cloudinary pour vérifier la connexion.
+   */
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('ADMIN')
+  @Post('admin/settings/test-cloudinary')
+  async testCloudinary() {
+    if (!this.cloudinary.isEnabled) {
+      return {
+        success: false,
+        message: 'CLOUDINARY_URL non configuré sur Render',
+        fix: 'Aller sur Render → Environment → Ajouter CLOUDINARY_URL=cloudinary://API_KEY:API_SECRET@CLOUD_NAME (copier depuis Cloudinary Dashboard → Settings → API Keys → API environment variable)',
+      };
+    }
+    try {
+      // PNG 1×1 pixel transparent (minimal valid PNG)
+      const pixel = Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+        'base64',
+      );
+      const url = await this.cloudinary.uploadBuffer(pixel, 'hotel/test');
+      return {
+        success: true,
+        message: 'Cloudinary fonctionne correctement',
+        testImageUrl: url,
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: `Cloudinary erreur: ${err?.message || err}`,
+        fix: 'Vérifier que CLOUDINARY_URL sur Render est au format exact: cloudinary://API_KEY:API_SECRET@CLOUD_NAME',
+      };
+    }
   }
 }

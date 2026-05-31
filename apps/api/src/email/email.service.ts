@@ -13,7 +13,11 @@ export class EmailService {
   private readonly logger = new Logger(EmailService.name);
   private resend: Resend | null = null;
   private from: string;
-  private adminEmail: string;
+  private _adminEmail: string;
+
+  get isEnabled(): boolean { return this.resend !== null; }
+  get fromAddress(): string { return this.from; }
+  get adminEmail(): string { return this._adminEmail; }
 
   constructor(
     private config: ConfigService,
@@ -22,9 +26,19 @@ export class EmailService {
     const apiKey = this.config.get<string>('RESEND_API_KEY');
     if (apiKey) {
       this.resend = new Resend(apiKey);
+      this.logger.log('Resend configuré avec succès');
+    } else {
+      this.logger.warn('RESEND_API_KEY absent — emails désactivés');
     }
-    this.from = this.config.get<string>('EMAIL_FROM', 'Hotel SETIFANA <noreply@setifana.com>');
-    this.adminEmail = this.config.get<string>('HOTEL_EMAIL', 'admin@setifana.com');
+    // Resend n'accepte que les domaines vérifiés dans son tableau de bord.
+    // Par défaut on utilise onboarding@resend.dev (domaine partagé Resend,
+    // pré-vérifié, fonctionne sans configuration DNS).
+    // Dès que votre domaine est vérifié, changez EMAIL_FROM sur Render.
+    this.from = this.config.get<string>(
+      'EMAIL_FROM',
+      'Hotel SETIFANA <onboarding@resend.dev>',
+    );
+    this._adminEmail = this.config.get<string>('HOTEL_EMAIL', 'admin@setifana.com');
   }
 
   async sendBookingConfirmation(booking: any) {
@@ -156,7 +170,7 @@ export class EmailService {
 
   async sendAdminNewBooking(booking: any) {
     const html = this.buildAdminBookingEmail(booking);
-    await this.send(this.adminEmail, `Nouvelle réservation ${booking.bookingReference}`, html);
+    await this.send(this._adminEmail, `Nouvelle réservation ${booking.bookingReference}`, html);
   }
 
   async sendAdminPaymentReceived(booking: any) {
@@ -174,7 +188,7 @@ export class EmailService {
         </div>
       </div>
     `;
-    await this.send(this.adminEmail, `Paiement reçu - ${booking.bookingReference}`, html);
+    await this.send(this._adminEmail, `Paiement reçu - ${booking.bookingReference}`, html);
   }
 
   private async send(to: string, subject: string, html: string, attachments?: EmailAttachment[]) {
@@ -299,5 +313,53 @@ export class EmailService {
         </div>
       </div>
     `;
+  }
+
+  /**
+   * Envoie un email de test pour vérifier la configuration Resend.
+   * Retourne un objet { success, message } sans jamais lever d'exception.
+   */
+  async sendTestEmail(to: string): Promise<{ success: boolean; message: string; from?: string }> {
+    if (!this.resend) {
+      return {
+        success: false,
+        message: 'RESEND_API_KEY non configuré sur Render — email impossible',
+      };
+    }
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+        <div style="background: #071B33; padding: 20px; text-align: center;">
+          <h1 style="color: #C8A45D; margin: 0; font-size: 22px;">Hotel SETIFANA</h1>
+          <p style="color: #fff; margin: 6px 0 0; font-size: 13px;">Test de configuration email</p>
+        </div>
+        <div style="padding: 28px; background: #fff;">
+          <p style="margin: 0 0 12px;">Bonjour,</p>
+          <p style="margin: 0 0 16px;">Cet email confirme que <strong>Resend est correctement configuré</strong> sur votre serveur Hotel SETIFANA.</p>
+          <div style="background: #d1fae5; border: 1px solid #6ee7b7; border-radius: 6px; padding: 14px; margin-bottom: 16px;">
+            <p style="margin: 0; color: #065f46; font-weight: bold;">✅ Configuration OK</p>
+            <p style="margin: 4px 0 0; color: #065f46; font-size: 13px;">Envoyé depuis : ${this.from}</p>
+          </div>
+          <p style="color: #6b7280; font-size: 13px; margin: 0;">Envoyé le ${new Date().toLocaleString('fr-FR')}</p>
+        </div>
+      </div>
+    `;
+    try {
+      const { error } = await this.resend.emails.send({
+        from: this.from,
+        to,
+        subject: '✅ Test email — Hotel SETIFANA (Resend OK)',
+        html,
+      });
+      if (error) throw error;
+      this.logger.log(`Email de test envoyé à ${to}`);
+      return { success: true, message: `Email de test envoyé à ${to}`, from: this.from };
+    } catch (err: any) {
+      this.logger.error(`Échec email de test: ${err?.message || err}`);
+      return {
+        success: false,
+        message: `Erreur Resend: ${err?.message || JSON.stringify(err)}`,
+        from: this.from,
+      };
+    }
   }
 }

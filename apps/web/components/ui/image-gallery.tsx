@@ -3,7 +3,54 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, X, ZoomIn } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, ZoomIn, BedDouble } from 'lucide-react';
+
+const FALLBACK = '/images/rooms/room-1.webp';
+
+function SafeImage({
+  src,
+  alt,
+  fill,
+  sizes,
+  priority,
+  className,
+}: {
+  src: string;
+  alt: string;
+  fill?: boolean;
+  sizes?: string;
+  priority?: boolean;
+  className?: string;
+}) {
+  const [imgSrc, setImgSrc] = useState(src);
+  const [broken, setBroken] = useState(false);
+
+  if (broken) {
+    return (
+      <div className="w-full h-full bg-primary/10 flex items-center justify-center">
+        <BedDouble className="w-12 h-12 text-gold/30" />
+      </div>
+    );
+  }
+
+  return (
+    <Image
+      src={imgSrc}
+      alt={alt}
+      fill={fill}
+      sizes={sizes}
+      priority={priority}
+      className={className}
+      onError={() => {
+        if (imgSrc !== FALLBACK) {
+          setImgSrc(FALLBACK);
+        } else {
+          setBroken(true);
+        }
+      }}
+    />
+  );
+}
 
 interface ImageGalleryProps {
   images: { id: string; imageUrl: string; altText: string }[];
@@ -28,7 +75,7 @@ export function ImageGallery({ images, roomName }: ImageGalleryProps) {
           className="md:col-span-2 relative h-72 md:h-96 cursor-pointer group"
           onClick={() => { setCurrentIndex(0); setLightboxOpen(true); }}
         >
-          <Image
+          <SafeImage
             src={images[0].imageUrl}
             alt={images[0].altText || roomName}
             fill
@@ -49,7 +96,7 @@ export function ImageGallery({ images, roomName }: ImageGalleryProps) {
               className="relative h-[calc(12rem-0.25rem)] md:h-[calc(12rem-0.25rem)] cursor-pointer group"
               onClick={() => { setCurrentIndex(i + 1); setLightboxOpen(true); }}
             >
-              <Image
+              <SafeImage
                 src={img.imageUrl}
                 alt={img.altText || roomName}
                 fill
@@ -108,6 +155,7 @@ export function ImageGallery({ images, roomName }: ImageGalleryProps) {
               alt={images[currentIndex].altText}
               className="max-h-[85vh] max-w-[90vw] object-contain rounded-lg"
               onClick={(e) => e.stopPropagation()}
+              onError={(e) => { (e.currentTarget as HTMLImageElement).src = FALLBACK; }}
             />
 
             {/* Next */}
@@ -129,7 +177,12 @@ export function ImageGallery({ images, roomName }: ImageGalleryProps) {
                   onClick={(e) => { e.stopPropagation(); setCurrentIndex(i); }}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={img.imageUrl} alt="" className="w-full h-full object-cover" />
+                  <img
+                    src={img.imageUrl}
+                    alt=""
+                    className="w-full h-full object-cover"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).src = FALLBACK; }}
+                  />
                 </button>
               ))}
             </div>

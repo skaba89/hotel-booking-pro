@@ -5,6 +5,7 @@ import {
   Save, Lock, Eye, EyeOff, Palette, Settings, CreditCard, Bell,
   Upload, Check, Building2, ToggleLeft, Shield, Image as ImageIcon,
   Type, Sun, Moon, RefreshCw, Smartphone, Mail, MessageCircle,
+  Wifi, WifiOff, SendHorizonal, Loader2, AlertCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -76,6 +77,15 @@ export default function AdminSettingsPage() {
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [showPasswords, setShowPasswords] = useState(false);
 
+  // Services test state
+  const [servicesStatus, setServicesStatus] = useState<any>(null);
+  const [servicesLoading, setServicesLoading] = useState(false);
+  const [testEmailTo, setTestEmailTo] = useState('');
+  const [testEmailLoading, setTestEmailLoading] = useState(false);
+  const [testEmailResult, setTestEmailResult] = useState<any>(null);
+  const [testCloudinaryLoading, setTestCloudinaryLoading] = useState(false);
+  const [testCloudinaryResult, setTestCloudinaryResult] = useState<any>(null);
+
   useEffect(() => {
     api.get<any[]>('/admin/settings').then((data) => {
       const map: Record<string, string> = {};
@@ -126,6 +136,44 @@ export default function AdminSettingsPage() {
       toast('Logo mis a jour', 'success');
     } catch (err: any) {
       toast(err.message || 'Erreur upload logo', 'error');
+    }
+  };
+
+  const loadServicesStatus = async () => {
+    setServicesLoading(true);
+    try {
+      const data = await api.get<any>('/admin/settings/services-status');
+      setServicesStatus(data);
+    } catch (err: any) {
+      toast(err.message || 'Erreur', 'error');
+    } finally {
+      setServicesLoading(false);
+    }
+  };
+
+  const handleTestEmail = async () => {
+    setTestEmailLoading(true);
+    setTestEmailResult(null);
+    try {
+      const result = await api.post<any>('/admin/settings/test-email', { to: testEmailTo || undefined });
+      setTestEmailResult(result);
+    } catch (err: any) {
+      setTestEmailResult({ success: false, message: err.message || 'Erreur réseau' });
+    } finally {
+      setTestEmailLoading(false);
+    }
+  };
+
+  const handleTestCloudinary = async () => {
+    setTestCloudinaryLoading(true);
+    setTestCloudinaryResult(null);
+    try {
+      const result = await api.post<any>('/admin/settings/test-cloudinary', {});
+      setTestCloudinaryResult(result);
+    } catch (err: any) {
+      setTestCloudinaryResult({ success: false, message: err.message || 'Erreur réseau' });
+    } finally {
+      setTestCloudinaryLoading(false);
     }
   };
 
@@ -471,6 +519,86 @@ export default function AdminSettingsPage() {
         {/* ═══════════════════ NOTIFICATIONS ═══════════════════ */}
         {activeTab === 'notifications' && (
           <div className="space-y-4">
+
+            {/* ── Diagnostic services ── */}
+            <Card className="border-blue-200 bg-blue-50/30">
+              <CardHeader>
+                <CardTitle className="text-base flex items-center justify-between">
+                  <span className="flex items-center gap-2"><Wifi className="w-4 h-4 text-blue-600" /> Diagnostic services (Resend &amp; Cloudinary)</span>
+                  <Button variant="outline" size="sm" onClick={loadServicesStatus} disabled={servicesLoading} className="text-xs">
+                    {servicesLoading ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <RefreshCw className="w-3 h-3 mr-1" />}
+                    Vérifier l&apos;état
+                  </Button>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {servicesStatus && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Resend status */}
+                    <div className={`rounded-lg p-3 border ${servicesStatus.resend.enabled ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                      <div className="flex items-center gap-2 mb-1">
+                        {servicesStatus.resend.enabled
+                          ? <Check className="w-4 h-4 text-green-600" />
+                          : <WifiOff className="w-4 h-4 text-red-500" />}
+                        <span className="text-sm font-semibold">Resend (Email)</span>
+                      </div>
+                      <p className="text-xs text-gray-600">{servicesStatus.resend.message}</p>
+                    </div>
+                    {/* Cloudinary status */}
+                    <div className={`rounded-lg p-3 border ${servicesStatus.cloudinary.enabled ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                      <div className="flex items-center gap-2 mb-1">
+                        {servicesStatus.cloudinary.enabled
+                          ? <Check className="w-4 h-4 text-green-600" />
+                          : <WifiOff className="w-4 h-4 text-red-500" />}
+                        <span className="text-sm font-semibold">Cloudinary (Images)</span>
+                      </div>
+                      <p className="text-xs text-gray-600">{servicesStatus.cloudinary.message}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Test email */}
+                <div className="border rounded-lg p-3 bg-white space-y-2">
+                  <p className="text-sm font-medium flex items-center gap-1.5"><SendHorizonal className="w-3.5 h-3.5" /> Envoyer un email de test</p>
+                  <div className="flex gap-2">
+                    <Input
+                      type="email"
+                      placeholder="votre@email.com (laisser vide = email admin)"
+                      value={testEmailTo}
+                      onChange={(e) => setTestEmailTo(e.target.value)}
+                      className="text-sm h-9"
+                    />
+                    <Button variant="outline" size="sm" onClick={handleTestEmail} disabled={testEmailLoading} className="shrink-0">
+                      {testEmailLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Envoyer'}
+                    </Button>
+                  </div>
+                  {testEmailResult && (
+                    <div className={`text-xs rounded p-2 ${testEmailResult.success ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+                      {testEmailResult.success ? '✅ ' : '❌ '}{testEmailResult.message}
+                      {testEmailResult.from && <span className="block opacity-70 mt-0.5">Depuis : {testEmailResult.from}</span>}
+                    </div>
+                  )}
+                </div>
+
+                {/* Test Cloudinary */}
+                <div className="border rounded-lg p-3 bg-white space-y-2">
+                  <p className="text-sm font-medium flex items-center gap-1.5"><ImageIcon className="w-3.5 h-3.5" /> Tester l&apos;upload Cloudinary</p>
+                  <Button variant="outline" size="sm" onClick={handleTestCloudinary} disabled={testCloudinaryLoading}>
+                    {testCloudinaryLoading ? <><Loader2 className="w-3 h-3 mr-1 animate-spin" />Test en cours...</> : 'Lancer le test'}
+                  </Button>
+                  {testCloudinaryResult && (
+                    <div className={`text-xs rounded p-2 ${testCloudinaryResult.success ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+                      {testCloudinaryResult.success ? '✅ ' : '❌ '}{testCloudinaryResult.message}
+                      {testCloudinaryResult.fix && <span className="block opacity-80 mt-1">💡 {testCloudinaryResult.fix}</span>}
+                      {testCloudinaryResult.testImageUrl && (
+                        <a href={testCloudinaryResult.testImageUrl} target="_blank" rel="noreferrer" className="block mt-1 underline">Voir l&apos;image test →</a>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader><CardTitle className="text-base flex items-center gap-2"><Mail className="w-4 h-4" /> Email</CardTitle></CardHeader>
               <CardContent className="space-y-4">

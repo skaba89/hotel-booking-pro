@@ -3,13 +3,13 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { Users, Maximize, BedDouble, Wifi, AirVent, Star, SlidersHorizontal } from 'lucide-react';
+import { Users, Maximize, BedDouble, Wifi, Star, SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { getRooms } from '@/lib/api';
+import { RoomImage } from '@/components/rooms/room-image';
 import { formatCurrency } from '@/lib/utils';
 
 function RoomsContent() {
@@ -197,19 +197,12 @@ function RoomsContent() {
                 <Card className="overflow-hidden hover:shadow-xl transition-all duration-300 group border-0 shadow-md">
                   {/* Room Image */}
                   <div className="h-52 relative overflow-hidden">
-                    {room.images?.[0] ? (
-                      <Image
-                        src={room.images[0].imageUrl}
-                        alt={room.images[0].altText || room.name}
-                        fill
-                        className="object-cover group-hover:scale-105 transition-transform duration-500"
-                        sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-primary/5 flex items-center justify-center">
-                        <BedDouble className="w-16 h-16 text-gold/20" />
-                      </div>
-                    )}
+                    <RoomImage
+                      src={room.images?.[0]?.imageUrl || ''}
+                      alt={room.images?.[0]?.altText || room.name}
+                      className="object-cover group-hover:scale-105 transition-transform duration-500"
+                      sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                    />
                     {/* Price badge */}
                     <div className="absolute top-3 right-3 bg-white/95 backdrop-blur-sm text-primary text-sm font-bold px-3 py-1.5 rounded-lg shadow">
                       {formatCurrency(Number(room.pricePerNight))}

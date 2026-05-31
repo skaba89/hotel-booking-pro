@@ -534,15 +534,17 @@ export default function AdminSettingsPage() {
               <CardContent className="space-y-4">
                 {servicesStatus && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {/* Resend status */}
-                    <div className={`rounded-lg p-3 border ${servicesStatus.resend.enabled ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                    {/* Email status */}
+                    <div className={`rounded-lg p-3 border ${servicesStatus.email?.enabled ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
                       <div className="flex items-center gap-2 mb-1">
-                        {servicesStatus.resend.enabled
+                        {servicesStatus.email?.enabled
                           ? <Check className="w-4 h-4 text-green-600" />
                           : <WifiOff className="w-4 h-4 text-red-500" />}
-                        <span className="text-sm font-semibold">Resend (Email)</span>
+                        <span className="text-sm font-semibold">
+                          Email {servicesStatus.email?.provider ? `(${servicesStatus.email.provider.toUpperCase()})` : ''}
+                        </span>
                       </div>
-                      <p className="text-xs text-gray-600">{servicesStatus.resend.message}</p>
+                      <p className="text-xs text-gray-600">{servicesStatus.email?.message}</p>
                     </div>
                     {/* Cloudinary status */}
                     <div className={`rounded-lg p-3 border ${servicesStatus.cloudinary.enabled ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>

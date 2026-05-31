@@ -124,13 +124,14 @@ export class SettingsController {
           ? 'CLOUDINARY_URL détecté — uploads persistants actifs'
           : 'CLOUDINARY_URL absent sur Render → ajouter la variable (format: cloudinary://API_KEY:API_SECRET@CLOUD_NAME)',
       },
-      resend: {
+      email: {
         enabled: this.email.isEnabled,
+        provider: this.email.provider,
         from: this.email.fromAddress,
         status: this.email.isEnabled ? 'ok' : 'non_configure',
         message: this.email.isEnabled
-          ? `Resend actif — envoi depuis "${this.email.fromAddress}"`
-          : 'RESEND_API_KEY absent sur Render → ajouter la variable',
+          ? `${this.email.provider.toUpperCase()} actif — envoi depuis "${this.email.fromAddress}"`
+          : 'Email désactivé → ajouter GMAIL_USER + GMAIL_APP_PASSWORD sur Render',
       },
     };
   }

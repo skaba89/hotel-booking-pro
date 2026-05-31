@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Resend } from 'resend';
+import * as nodemailer from 'nodemailer';
 import { PdfService } from '../pdf/pdf.service';
 
 interface EmailAttachment {
@@ -8,36 +9,69 @@ interface EmailAttachment {
   content: Buffer;
 }
 
+/**
+ * EmailService — deux fournisseurs supportés, par ordre de priorité :
+ *
+ * 1. Gmail SMTP (GMAIL_USER + GMAIL_APP_PASSWORD)
+ *    → Aucun domaine requis, envoie à n'importe quelle adresse, 500 emails/jour.
+ *    → Créer un compte Gmail dédié + activer la validation en 2 étapes + générer
+ *      un "Mot de passe d'application" sur myaccount.google.com/apppasswords.
+ *
+ * 2. Resend (RESEND_API_KEY)
+ *    → Nécessite un domaine vérifié pour envoyer aux clients. Sans domaine, seul
+ *      l'email du compte Resend peut recevoir des messages.
+ */
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
+
+  private gmailTransporter: nodemailer.Transporter | null = null;
   private resend: Resend | null = null;
+
   private from: string;
   private _adminEmail: string;
+  private _provider: 'gmail' | 'resend' | 'none' = 'none';
 
-  get isEnabled(): boolean { return this.resend !== null; }
+  get isEnabled(): boolean { return this._provider !== 'none'; }
   get fromAddress(): string { return this.from; }
   get adminEmail(): string { return this._adminEmail; }
+  get provider(): string { return this._provider; }
 
   constructor(
     private config: ConfigService,
     private pdf: PdfService,
   ) {
-    const apiKey = this.config.get<string>('RESEND_API_KEY');
-    if (apiKey) {
-      this.resend = new Resend(apiKey);
-      this.logger.log('Resend configuré avec succès');
+    const gmailUser = this.config.get<string>('GMAIL_USER');
+    const gmailPass = this.config.get<string>('GMAIL_APP_PASSWORD');
+
+    if (gmailUser && gmailPass) {
+      this.gmailTransporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: { user: gmailUser, pass: gmailPass },
+      });
+      this._provider = 'gmail';
+      this.from = this.config.get<string>('EMAIL_FROM', `Hotel SETIFANA <${gmailUser}>`);
+      this.logger.log(`Gmail SMTP configuré — envoi depuis ${this.from}`);
     } else {
-      this.logger.warn('RESEND_API_KEY absent — emails désactivés');
+      const resendKey = this.config.get<string>('RESEND_API_KEY');
+      if (resendKey) {
+        this.resend = new Resend(resendKey);
+        this._provider = 'resend';
+        // Resend sans domaine vérifié → from doit être onboarding@resend.dev
+        this.from = this.config.get<string>(
+          'EMAIL_FROM',
+          'Hotel SETIFANA <onboarding@resend.dev>',
+        );
+        this.logger.log(`Resend configuré — envoi depuis ${this.from}`);
+        this.logger.warn(
+          'Resend sans domaine vérifié : les emails n\'arrivent qu\'à l\'adresse du compte Resend. ' +
+          'Pour envoyer aux clients, configurez GMAIL_USER + GMAIL_APP_PASSWORD.',
+        );
+      } else {
+        this.logger.warn('Aucun fournisseur email configuré (GMAIL_USER ou RESEND_API_KEY manquant)');
+      }
     }
-    // Resend n'accepte que les domaines vérifiés dans son tableau de bord.
-    // Par défaut on utilise onboarding@resend.dev (domaine partagé Resend,
-    // pré-vérifié, fonctionne sans configuration DNS).
-    // Dès que votre domaine est vérifié, changez EMAIL_FROM sur Render.
-    this.from = this.config.get<string>(
-      'EMAIL_FROM',
-      'Hotel SETIFANA <onboarding@resend.dev>',
-    );
+
     this._adminEmail = this.config.get<string>('HOTEL_EMAIL', 'admin@setifana.com');
   }
 
@@ -52,11 +86,6 @@ export class EmailService {
     );
   }
 
-  /**
-   * Génère le reçu PDF + un événement calendrier (.ics) pour le séjour.
-   * Best-effort : si la génération échoue, on renvoie ce qui a réussi (ou rien)
-   * afin de ne jamais bloquer l'envoi de l'email de confirmation.
-   */
   private async buildBookingAttachments(booking: any): Promise<EmailAttachment[]> {
     const attachments: EmailAttachment[] = [];
     try {
@@ -74,7 +103,6 @@ export class EmailService {
     return attachments;
   }
 
-  /** Construit un événement iCalendar (RFC 5545) pour le séjour réservé. */
   private buildCalendarEvent(booking: any): string {
     const toIcsDate = (d: Date | string) => {
       const date = new Date(d);
@@ -85,31 +113,19 @@ export class EmailService {
     };
     const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
     const escape = (s: string) => String(s ?? '').replace(/([,;\\])/g, '\\$1').replace(/\n/g, '\\n');
-    const lines = [
-      'BEGIN:VCALENDAR',
-      'VERSION:2.0',
-      'PRODID:-//Hotel SETIFANA//Booking//FR',
-      'CALSCALE:GREGORIAN',
-      'METHOD:PUBLISH',
-      'BEGIN:VEVENT',
-      `UID:${booking.bookingReference}@setifana`,
-      `DTSTAMP:${stamp}`,
+    return [
+      'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Hotel SETIFANA//Booking//FR',
+      'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'BEGIN:VEVENT',
+      `UID:${booking.bookingReference}@setifana`, `DTSTAMP:${stamp}`,
       `DTSTART;VALUE=DATE:${toIcsDate(booking.checkInDate)}`,
       `DTEND;VALUE=DATE:${toIcsDate(booking.checkOutDate)}`,
       `SUMMARY:${escape(`Séjour Hotel SETIFANA - ${booking.room?.name || 'Chambre'}`)}`,
       `DESCRIPTION:${escape(`Réservation ${booking.bookingReference} - ${booking.nights} nuit(s)`)}`,
-      'LOCATION:Hotel SETIFANA\\, Conakry\\, Guinée',
-      'STATUS:CONFIRMED',
-      'END:VEVENT',
-      'END:VCALENDAR',
-    ];
-    return lines.join('\r\n');
+      'LOCATION:Hotel SETIFANA\\, Conakry\\, Guinée', 'STATUS:CONFIRMED',
+      'END:VEVENT', 'END:VCALENDAR',
+    ].join('\r\n');
   }
 
-  /**
-   * Envoie un devis ou une facture au client, avec le PDF en pièce jointe et
-   * un lien de consultation en ligne (page publique sécurisée par token).
-   */
   async sendDocument(document: any, pdf: Buffer) {
     const isQuote = document.type === 'QUOTE';
     const label = isQuote ? 'Devis' : 'Facture';
@@ -191,16 +207,44 @@ export class EmailService {
     await this.send(this._adminEmail, `Paiement reçu - ${booking.bookingReference}`, html);
   }
 
-  private async send(to: string, subject: string, html: string, attachments?: EmailAttachment[]) {
-    if (!this.resend) {
-      this.logger.warn(`Email non envoyé (Resend non configuré): ${subject} -> ${to}`);
-      return;
-    }
+  // ─── Transport Layer ─────────────────────────────────────────────────────────
 
-    // Retry avec back-off sur erreur transitoire. Le SDK Resend ne lève pas
-    // d'exception sur erreur API : il renvoie { error }. On le traite comme un
-    // échec pour pouvoir réessayer. Cette méthode ne propage jamais l'erreur
-    // (contrat "fire-and-forget" des appelants) ; en cas d'échec final, on log.
+  private async send(to: string, subject: string, html: string, attachments?: EmailAttachment[]) {
+    if (this._provider === 'gmail') {
+      await this.sendViaGmail(to, subject, html, attachments);
+    } else if (this._provider === 'resend') {
+      await this.sendViaResend(to, subject, html, attachments);
+    } else {
+      this.logger.warn(`Email non envoyé (aucun fournisseur configuré): ${subject} -> ${to}`);
+    }
+  }
+
+  private async sendViaGmail(to: string, subject: string, html: string, attachments?: EmailAttachment[]) {
+    if (!this.gmailTransporter) return;
+    const maxAttempts = 3;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        await this.gmailTransporter.sendMail({
+          from: this.from,
+          to,
+          subject,
+          html,
+          attachments: attachments?.map((a) => ({ filename: a.filename, content: a.content })),
+        });
+        this.logger.log(`[Gmail] Email envoyé: ${subject} -> ${to}`);
+        return;
+      } catch (error: any) {
+        if (attempt === maxAttempts) {
+          this.logger.error(`[Gmail] Échec après ${maxAttempts} tentatives: ${subject} -> ${to}`, error);
+          return;
+        }
+        await new Promise((r) => setTimeout(r, 500 * 2 ** (attempt - 1)));
+      }
+    }
+  }
+
+  private async sendViaResend(to: string, subject: string, html: string, attachments?: EmailAttachment[]) {
+    if (!this.resend) return;
     const maxAttempts = 3;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
@@ -212,19 +256,19 @@ export class EmailService {
           ...(attachments && attachments.length > 0 ? { attachments } : {}),
         });
         if (error) throw error;
-        this.logger.log(`Email envoyé: ${subject} -> ${to}`);
+        this.logger.log(`[Resend] Email envoyé: ${subject} -> ${to}`);
         return;
       } catch (error) {
         if (attempt === maxAttempts) {
-          this.logger.error(`Échec envoi email après ${maxAttempts} tentatives: ${subject} -> ${to}`, error as any);
+          this.logger.error(`[Resend] Échec après ${maxAttempts} tentatives: ${subject} -> ${to}`, error as any);
           return;
         }
-        const delayMs = 500 * 2 ** (attempt - 1); // 500ms, puis 1000ms
-        this.logger.warn(`Tentative ${attempt}/${maxAttempts} échouée pour "${subject}", nouvel essai dans ${delayMs}ms`);
-        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        await new Promise((r) => setTimeout(r, 500 * 2 ** (attempt - 1)));
       }
     }
   }
+
+  // ─── Email Templates ─────────────────────────────────────────────────────────
 
   private buildBookingEmail(booking: any, title: string): string {
     return `
@@ -269,7 +313,7 @@ export class EmailService {
           <div style="background: #d4edda; padding: 15px; border-radius: 8px; margin: 20px 0;">
             <p style="margin: 0; color: #155724;"><strong>Montant payé : ${Number(booking.totalAmount).toLocaleString()} ${booking.currency}</strong></p>
           </div>
-          <p>Votre réservation est maintenant confirmée. Vous recevrez un reçu PDF en pièce jointe.</p>
+          <p>Votre réservation est maintenant confirmée.</p>
         </div>
         <div style="background: #071B33; padding: 15px; text-align: center; color: #999; font-size: 12px;">
           <p>Hotel SETIFANA - Conakry, Guinée</p>
@@ -315,15 +359,13 @@ export class EmailService {
     `;
   }
 
-  /**
-   * Envoie un email de test pour vérifier la configuration Resend.
-   * Retourne un objet { success, message } sans jamais lever d'exception.
-   */
-  async sendTestEmail(to: string): Promise<{ success: boolean; message: string; from?: string }> {
-    if (!this.resend) {
+  // ─── Test & Diagnostic ───────────────────────────────────────────────────────
+
+  async sendTestEmail(to: string): Promise<{ success: boolean; message: string; from?: string; provider?: string }> {
+    if (!this.isEnabled) {
       return {
         success: false,
-        message: 'RESEND_API_KEY non configuré sur Render — email impossible',
+        message: 'Aucun fournisseur email configuré. Ajoutez GMAIL_USER + GMAIL_APP_PASSWORD sur Render.',
       };
     }
     const html = `
@@ -334,32 +376,20 @@ export class EmailService {
         </div>
         <div style="padding: 28px; background: #fff;">
           <p style="margin: 0 0 12px;">Bonjour,</p>
-          <p style="margin: 0 0 16px;">Cet email confirme que <strong>Resend est correctement configuré</strong> sur votre serveur Hotel SETIFANA.</p>
+          <p style="margin: 0 0 16px;">✅ Le service email fonctionne correctement.</p>
           <div style="background: #d1fae5; border: 1px solid #6ee7b7; border-radius: 6px; padding: 14px; margin-bottom: 16px;">
-            <p style="margin: 0; color: #065f46; font-weight: bold;">✅ Configuration OK</p>
-            <p style="margin: 4px 0 0; color: #065f46; font-size: 13px;">Envoyé depuis : ${this.from}</p>
+            <p style="margin: 0; color: #065f46; font-weight: bold;">Fournisseur : ${this._provider.toUpperCase()}</p>
+            <p style="margin: 4px 0 0; color: #065f46; font-size: 13px;">Depuis : ${this.from}</p>
           </div>
           <p style="color: #6b7280; font-size: 13px; margin: 0;">Envoyé le ${new Date().toLocaleString('fr-FR')}</p>
         </div>
       </div>
     `;
     try {
-      const { error } = await this.resend.emails.send({
-        from: this.from,
-        to,
-        subject: '✅ Test email — Hotel SETIFANA (Resend OK)',
-        html,
-      });
-      if (error) throw error;
-      this.logger.log(`Email de test envoyé à ${to}`);
-      return { success: true, message: `Email de test envoyé à ${to}`, from: this.from };
+      await this.send(to, '✅ Test email — Hotel SETIFANA', html);
+      return { success: true, message: `Email envoyé à ${to}`, from: this.from, provider: this._provider };
     } catch (err: any) {
-      this.logger.error(`Échec email de test: ${err?.message || err}`);
-      return {
-        success: false,
-        message: `Erreur Resend: ${err?.message || JSON.stringify(err)}`,
-        from: this.from,
-      };
+      return { success: false, message: `Erreur: ${err?.message || err}`, provider: this._provider };
     }
   }
 }

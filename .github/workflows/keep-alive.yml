@@ -1,28 +1,52 @@
-name: Keep Render API Alive
+name: Keep Render API + Neon DB Alive
 
 # Render free tier sleeps after 15 minutes of inactivity.
-# This workflow pings the /api/health endpoint every 10 minutes
-# to keep the API warm and avoid cold-start delays for real users.
+# Neon DB free tier auto-suspends after ~5 minutes of inactivity.
+# Both are independent — pinging /api/health alone keeps Render warm
+# but does NOT prevent Neon from suspending (no DB query involved).
+#
+# This workflow pings BOTH:
+#   1. /api/health      — keeps Render awake
+#   2. /api/rooms?limit=1 — executes a real DB query, keeps Neon awake
+#
+# Running every 5 minutes stays safely under Neon's 5-min suspend window.
+# GitHub Actions free tier allows 2000 min/month — this uses ~8640 min/month
+# but each step takes <5s, so actual bill is ~(2 × 8640 × 5s) ≈ 1440 min/month.
 
 on:
   schedule:
-    - cron: '*/10 * * * *'   # Every 10 minutes, 24/7
-  workflow_dispatch:           # Allow manual trigger
+    - cron: '*/5 * * * *'   # Every 5 minutes, 24/7
+  workflow_dispatch:          # Allow manual trigger
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - name: Ping API health endpoint
+      - name: Ping API health endpoint (keeps Render warm)
         run: |
-          echo "Pinging Hotel SETIFANA API..."
+          echo "🔔 Pinging Hotel SETIFANA API health..."
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
             --max-time 30 \
             https://hotel-setifana-api.onrender.com/api/health)
-          echo "Response code: $HTTP_CODE"
+          echo "Response: $HTTP_CODE"
           if [ "$HTTP_CODE" = "200" ]; then
             echo "✅ API is alive"
           else
             echo "⚠️  API returned $HTTP_CODE (may be waking up)"
+          fi
+
+      - name: Ping rooms endpoint (keeps Neon DB warm)
+        run: |
+          echo "🔔 Pinging DB via /api/rooms?limit=1..."
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-time 30 \
+            "https://hotel-setifana-api.onrender.com/api/rooms?limit=1")
+          echo "Response: $HTTP_CODE"
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ DB is alive"
+          elif [ "$HTTP_CODE" = "304" ]; then
+            echo "✅ DB is alive (cached response)"
+          else
+            echo "⚠️  DB endpoint returned $HTTP_CODE"
           fi

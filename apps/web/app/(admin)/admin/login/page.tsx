@@ -74,13 +74,17 @@ export default function AdminLoginPage() {
     } catch (err: any) {
       const msg: string = err.message || '';
 
-      // ── 502 / network timeout = server cold-starting → auto-retry ──────
+      // ── 502 / 503 / 504 = Render cold-start → auto-retry ─────────────
+      // api.ts prefixes cold-start errors with COLD_START_ for reliable detection.
+      // We also catch raw network failures ('Failed to fetch', 'NetworkError').
       const isColdStart =
+        msg.includes('COLD_START_') ||
         msg.includes('502') ||
         msg.includes('503') ||
+        msg.includes('504') ||
         msg.includes('Failed to fetch') ||
-        msg.includes('Network') ||
-        msg.includes('network') ||
+        msg.includes('NetworkError') ||
+        msg.toLowerCase().includes('network') ||
         msg.toLowerCase().includes('gateway');
 
       if (isColdStart && attempt < MAX_RETRIES) {
@@ -110,7 +114,10 @@ export default function AdminLoginPage() {
         setLoading(false);
         setRetryCount(0);
         if (isColdStart) {
-          setError('Le serveur ne répond pas après plusieurs tentatives. Veuillez réessayer dans quelques minutes.');
+          setError(
+            'Le serveur met plus de temps que prévu à démarrer. ' +
+            'Attendez 1–2 minutes puis rechargez la page, ou réessayez.'
+          );
         } else {
           setError(msg || 'Identifiants invalides');
         }
@@ -164,17 +171,25 @@ export default function AdminLoginPage() {
             <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg p-4 mb-4 text-sm">
               <Wifi className="w-5 h-5 flex-shrink-0 mt-0.5 animate-pulse" />
               <div className="flex-1">
-                <p className="font-semibold">Démarrage du serveur en cours…</p>
-                <p className="text-xs mt-0.5 text-amber-700">
-                  Le serveur se réveille après une période d&apos;inactivité.
-                  Tentative {retryCount}/{MAX_RETRIES} dans{' '}
+                <p className="font-semibold">Serveur en cours de démarrage…</p>
+                <p className="text-xs mt-1 text-amber-700 leading-relaxed">
+                  Le serveur se réveille après une période d&apos;inactivité
+                  (démarrage ~30–60 s). Nouvelle tentative dans{' '}
                   <span className="font-bold tabular-nums">{countdown}s</span>
+                  {' '}· {retryCount}/{MAX_RETRIES}
                 </p>
+                {/* Progress bar */}
+                <div className="mt-2 h-1.5 bg-amber-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-amber-500 rounded-full transition-all duration-1000"
+                    style={{ width: `${((MAX_RETRIES - retryCount) / MAX_RETRIES) * 100}%` }}
+                  />
+                </div>
                 <button
                   onClick={handleCancelRetry}
-                  className="text-xs text-amber-600 hover:text-amber-800 underline mt-1"
+                  className="text-xs text-amber-600 hover:text-amber-800 underline mt-2"
                 >
-                  Annuler
+                  Annuler et réessayer manuellement
                 </button>
               </div>
             </div>

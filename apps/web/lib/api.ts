@@ -106,10 +106,12 @@ class ApiClient {
     }
 
     if (!res.ok) {
-      // 502/503 = Render free-tier cold start or gateway restart.
-      // Surface the status code so the caller can display a friendly message.
-      if (res.status === 502 || res.status === 503) {
-        throw new Error(`502 — Serveur temporairement indisponible (démarrage en cours)`);
+      // 502 Bad Gateway    = upstream refused connection (Render container not running)
+      // 503 Service Unavail= upstream overloaded / not ready
+      // 504 Gateway Timeout= Netlify proxy waited ~26 s for Render cold-start, gave up
+      // All three = Render free-tier waking up. Tag the error so callers can retry.
+      if (res.status === 502 || res.status === 503 || res.status === 504) {
+        throw new Error(`COLD_START_${res.status} — Serveur en démarrage (${res.status})`);
       }
       const error = await res.json().catch(() => ({ message: `Erreur ${res.status}` }));
       throw new Error(error.message || `Erreur ${res.status}`);

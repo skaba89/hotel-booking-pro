@@ -2,16 +2,13 @@ name: Keep Render API + Neon DB Alive
 
 # Render free tier sleeps after 15 minutes of inactivity.
 # Neon DB free tier auto-suspends after ~5 minutes of inactivity.
-# Both are independent — pinging /api/health alone keeps Render warm
-# but does NOT prevent Neon from suspending (no DB query involved).
 #
-# This workflow pings BOTH:
-#   1. /api/health      — keeps Render awake
-#   2. /api/rooms?limit=1 — executes a real DB query, keeps Neon awake
+# This workflow pings BOTH endpoints every 5 minutes to prevent sleep.
+# If the first ping gets a cold-start response (non-200), it retries after
+# 60 seconds to confirm Render is fully awake before the next cron window.
 #
-# Running every 5 minutes stays safely under Neon's 5-min suspend window.
-# GitHub Actions free tier allows 2000 min/month — this uses ~8640 min/month
-# but each step takes <5s, so actual bill is ~(2 × 8640 × 5s) ≈ 1440 min/month.
+# Important: GitHub Actions cron is not exact — it can be delayed by up to
+# 15-30 minutes during high load. That's why we also maintain keep-warm.yml.
 
 on:
   schedule:
@@ -21,32 +18,38 @@ on:
 jobs:
   ping:
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 4        # Enough for cold start + retry
     steps:
-      - name: Ping API health endpoint (keeps Render warm)
+      - name: Ping health endpoint — wake Render if sleeping
         run: |
-          echo "🔔 Pinging Hotel SETIFANA API health..."
-          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-            --max-time 30 \
-            https://hotel-setifana-api.onrender.com/api/health)
-          echo "Response: $HTTP_CODE"
-          if [ "$HTTP_CODE" = "200" ]; then
-            echo "✅ API is alive"
-          else
-            echo "⚠️  API returned $HTTP_CODE (may be waking up)"
-          fi
+          echo "🔔 Pinging Hotel SETIFANA API health endpoint..."
 
-      - name: Ping rooms endpoint (keeps Neon DB warm)
+          for attempt in 1 2; do
+            HTTP_CODE=$(curl -s -o /tmp/health.txt -w "%{http_code}" \
+              --max-time 90 \
+              https://hotel-setifana-api.onrender.com/api/health || echo "000")
+            echo "Attempt $attempt → HTTP $HTTP_CODE"
+
+            if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "304" ]; then
+              echo "✅ Render API is alive"
+              break
+            elif [ "$attempt" = "1" ]; then
+              echo "⚠️  Got $HTTP_CODE — Render may be waking up. Waiting 60s then retrying..."
+              sleep 60
+            else
+              echo "⚠️  Still $HTTP_CODE after retry — cold start may take longer"
+            fi
+          done
+
+      - name: Ping rooms endpoint — keep Neon DB warm
         run: |
-          echo "🔔 Pinging DB via /api/rooms?limit=1..."
+          echo "🔔 Pinging /api/rooms?limit=1 (real DB query)..."
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-            --max-time 30 \
-            "https://hotel-setifana-api.onrender.com/api/rooms?limit=1")
+            --max-time 90 \
+            "https://hotel-setifana-api.onrender.com/api/rooms?limit=1" || echo "000")
           echo "Response: $HTTP_CODE"
-          if [ "$HTTP_CODE" = "200" ]; then
-            echo "✅ DB is alive"
-          elif [ "$HTTP_CODE" = "304" ]; then
-            echo "✅ DB is alive (cached response)"
+          if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "304" ]; then
+            echo "✅ Neon DB is alive"
           else
-            echo "⚠️  DB endpoint returned $HTTP_CODE"
+            echo "⚠️  DB endpoint returned $HTTP_CODE (may still be warming)"
           fi

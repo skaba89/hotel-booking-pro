@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Patch, Body, Res, Req, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Body, Res, Req, UseGuards, UnauthorizedException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Throttle } from '@nestjs/throttler';
 import { Response, Request } from 'express';
@@ -71,7 +71,10 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const token = dto.refreshToken || (req.cookies?.refresh_token as string);
+    const token = dto.refreshToken || (req.cookies?.refresh_token as string | undefined);
+    if (!token) {
+      throw new UnauthorizedException('Token de rafraîchissement manquant');
+    }
     const result = await this.authService.refreshToken(token);
     this.setAuthCookies(res, result);
     return result;

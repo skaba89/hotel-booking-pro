@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsOptional, IsEmail, Min, Max, IsDateString, IsEnum, IsNotEmpty } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsEmail, Min, Max, MaxLength, IsDateString, IsEnum, IsNotEmpty } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateBookingDto {
@@ -22,6 +22,7 @@ export class CreateBookingDto {
   children: number;
 
   @IsString()
+  @MaxLength(100)
   fullName: string;
 
   @IsEmail()
@@ -29,14 +30,17 @@ export class CreateBookingDto {
 
   @IsString()
   @IsOptional()
+  @MaxLength(30)
   phone?: string;
 
   @IsString()
   @IsOptional()
+  @MaxLength(100)
   country?: string;
 
   @IsString()
   @IsOptional()
+  @MaxLength(2000)
   specialRequest?: string;
 }
 
@@ -67,6 +71,7 @@ export class BookingQueryDto {
 
   @IsNumber()
   @IsOptional()
+  @Max(200)
   @Type(() => Number)
   limit?: number = 10;
 

@@ -43,7 +43,13 @@ services:
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/hotel_booking_pro?schema=public
       REDIS_URL: redis://redis:6379
       NODE_ENV: production
-      API_PORT: '4000'
+      # PORT must match EXPOSE in Dockerfile (4000) and nginx upstream api:4000
+      PORT: '4000'
+      # Forward secrets from the host .env or docker-compose env_file
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production-at-least-32-chars}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change-me-refresh-in-production-32-chars}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-15m}
+      JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION:-7d}
     volumes:
       - uploads_data:/app/uploads
     depends_on:
@@ -51,8 +57,11 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    # Load optional host .env file — docker compose ignores missing env_file
+    # when required: false (compose spec 3.x extension).
     env_file:
-      - .env.production
+      - path: .env
+        required: false
     logging:
       driver: 'json-file'
       options:
@@ -64,6 +73,8 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
       args:
+        # The browser hits /api/* which nginx proxies — keep the internal URL
+        # (api:4000) here for SSR; the public-facing URL goes via nginx.
         NEXT_PUBLIC_API_URL: http://api:4000
     container_name: hotel-booking-web
     restart: unless-stopped
@@ -75,7 +86,8 @@ services:
     depends_on:
       - api
     env_file:
-      - .env.production
+      - path: .env
+        required: false
     logging:
       driver: 'json-file'
       options:
@@ -94,7 +106,7 @@ services:
       - api
       - web
 
-  # Usage: docker compose run --rm seed
+  # One-shot DB seed — run with: docker compose run --rm seed
   seed:
     build:
       context: .

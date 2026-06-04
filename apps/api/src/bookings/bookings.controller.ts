@@ -1,16 +1,19 @@
 import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Throttle } from '@nestjs/throttler';
+import { ApiTags } from '@nestjs/swagger';
 import { BookingsService } from './bookings.service';
 import { CreateBookingDto, QuoteDto, BookingQueryDto, UpdateBookingStatusDto, BookingLookupDto } from './bookings.dto';
 import { Public, Roles } from '../common/decorators';
 import { RolesGuard } from '../common/guards/roles.guard';
 
+@ApiTags('bookings')
 @Controller()
 export class BookingsController {
   constructor(private bookingsService: BookingsService) {}
 
   @Public()
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post('bookings/quote')
   getQuote(@Body() dto: QuoteDto) {
     return this.bookingsService.getQuote(dto);
@@ -39,6 +42,7 @@ export class BookingsController {
 
   // Keep old GET route for payment page (internal, limited data)
   @Public()
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
   @Get('bookings/:reference')
   findByReferenceLimited(@Param('reference') reference: string) {
     return this.bookingsService.findByReferenceLimited(reference);

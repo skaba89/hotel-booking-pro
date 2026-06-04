@@ -1,3 +1,4 @@
+import { ApiTags } from '@nestjs/swagger';
 import {
   Controller,
   Get,
@@ -19,6 +20,7 @@ import {
 import { Roles, CurrentUser } from '../common/decorators';
 import { RolesGuard } from '../common/guards/roles.guard';
 
+@ApiTags('expenses')
 @Controller('admin/expenses')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 export class ExpensesController {

@@ -403,4 +403,90 @@ export class EmailService {
       return { success: false, message: `Erreur: ${err?.message || err}`, provider: this._provider };
     }
   }
+
+  async sendEmailVerificationEmail(to: string, fullName: string, token: string) {
+    const siteUrl = this.config.get<string>('NEXT_PUBLIC_SITE_URL', 'https://hotel-setifana-conakry.netlify.app');
+    const verifyUrl = `${siteUrl}/verify-email?token=${token}`;
+
+    const html = `
+      <div style="font-family: Georgia, serif; max-width: 600px; margin: 0 auto; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+        <div style="background: #071B33; padding: 24px 32px; text-align: center;">
+          <h1 style="color: #C9A84C; margin: 0; font-size: 22px; letter-spacing: 2px;">HÔTEL SETIFANA</h1>
+          <p style="color: #9ca3af; margin: 6px 0 0; font-size: 13px;">Vérification de votre adresse email</p>
+        </div>
+        <div style="padding: 32px;">
+          <p style="color: #1f2937; font-size: 16px; margin: 0 0 16px;">Bonjour ${fullName},</p>
+          <p style="color: #4b5563; font-size: 15px; line-height: 1.6; margin: 0 0 24px;">
+            Merci de vous être inscrit(e) à l'Hôtel SETIFANA. Veuillez confirmer votre adresse email
+            en cliquant sur le bouton ci-dessous.
+          </p>
+          <div style="text-align: center; margin: 32px 0;">
+            <a href="${verifyUrl}" style="background: #C9A84C; color: #fff; padding: 14px 32px; border-radius: 6px; text-decoration: none; font-size: 15px; font-weight: 600; display: inline-block;">
+              Vérifier mon adresse email
+            </a>
+          </div>
+          <p style="color: #6b7280; font-size: 13px; text-align: center; margin: 0 0 8px;">
+            Ce lien est valable <strong>24 heures</strong>.
+          </p>
+          <p style="color: #6b7280; font-size: 13px; text-align: center; margin: 0 0 24px;">
+            Si vous n'avez pas créé de compte, ignorez simplement cet email.
+          </p>
+          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+          <p style="color: #9ca3af; font-size: 12px; text-align: center; margin: 0;">
+            Lien direct : <a href="${verifyUrl}" style="color: #C9A84C;">${verifyUrl}</a>
+          </p>
+        </div>
+        <div style="background: #f9fafb; padding: 16px; text-align: center; border-top: 1px solid #e5e7eb;">
+          <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+            Hôtel SETIFANA — Baie de Sangareya, Conakry, Guinée
+          </p>
+        </div>
+      </div>
+    `;
+
+    await this.send(to, '✉️ Vérifiez votre email — Hôtel SETIFANA', html);
+  }
+
+  async sendPasswordResetEmail(to: string, fullName: string, token: string) {
+    const siteUrl = this.config.get<string>('NEXT_PUBLIC_SITE_URL', 'https://hotel-setifana-conakry.netlify.app');
+    const resetUrl = `${siteUrl}/reset-password?token=${token}`;
+
+    const html = `
+      <div style="font-family: Georgia, serif; max-width: 600px; margin: 0 auto; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+        <div style="background: #071B33; padding: 24px 32px; text-align: center;">
+          <h1 style="color: #C9A84C; margin: 0; font-size: 22px; letter-spacing: 2px;">HÔTEL SETIFANA</h1>
+          <p style="color: #9ca3af; margin: 6px 0 0; font-size: 13px;">Réinitialisation de mot de passe</p>
+        </div>
+        <div style="padding: 32px;">
+          <p style="color: #1f2937; font-size: 16px; margin: 0 0 16px;">Bonjour ${fullName},</p>
+          <p style="color: #4b5563; font-size: 15px; line-height: 1.6; margin: 0 0 24px;">
+            Nous avons reçu une demande de réinitialisation de mot de passe pour votre compte.
+            Cliquez sur le bouton ci-dessous pour choisir un nouveau mot de passe.
+          </p>
+          <div style="text-align: center; margin: 32px 0;">
+            <a href="${resetUrl}" style="background: #C9A84C; color: #fff; padding: 14px 32px; border-radius: 6px; text-decoration: none; font-size: 15px; font-weight: 600; display: inline-block;">
+              Réinitialiser mon mot de passe
+            </a>
+          </div>
+          <p style="color: #6b7280; font-size: 13px; text-align: center; margin: 0 0 8px;">
+            Ce lien expire dans <strong>1 heure</strong>.
+          </p>
+          <p style="color: #6b7280; font-size: 13px; text-align: center; margin: 0 0 24px;">
+            Si vous n'avez pas demandé cette réinitialisation, ignorez cet email — votre mot de passe reste inchangé.
+          </p>
+          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+          <p style="color: #9ca3af; font-size: 12px; text-align: center; margin: 0;">
+            Lien direct : <a href="${resetUrl}" style="color: #C9A84C;">${resetUrl}</a>
+          </p>
+        </div>
+        <div style="background: #f9fafb; padding: 16px; text-align: center; border-top: 1px solid #e5e7eb;">
+          <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+            Hôtel SETIFANA — Baie de Sangareya, Conakry, Guinée
+          </p>
+        </div>
+      </div>
+    `;
+
+    await this.send(to, '🔑 Réinitialisation de mot de passe — Hôtel SETIFANA', html);
+  }
 }

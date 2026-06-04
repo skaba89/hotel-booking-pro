@@ -43,10 +43,15 @@ jobs:
         run: npm ci
 
       - name: Generate Prisma client
-        run: npx prisma generate
+        # Use the local CLI (Prisma v5.x) — avoids surprises if a global Prisma 6/7+
+        # is ever installed on the runner image (same fix as local dev / Dockerfile).
+        run: node node_modules/prisma/build/index.js generate
 
-      - name: Test (api unit tests)
+      - name: Test — unit (138 tests)
         run: npm run test --workspace=apps/api
+
+      - name: Test — E2E (34 tests, in-memory DB, no rate-limiting)
+        run: npm run test:e2e --workspace=apps/api
 
       - name: Build (shared + api + web)
         run: npm run build

@@ -8,6 +8,8 @@ import {
   ValidateNested,
   ArrayMinSize,
   Min,
+  Max,
+  MaxLength,
   IsNotEmpty,
   IsDateString,
 } from 'class-validator';
@@ -16,6 +18,7 @@ import { Type } from 'class-transformer';
 export class DocumentLineDto {
   @IsString()
   @IsNotEmpty()
+  @MaxLength(500)
   description: string;
 
   @IsNumber()
@@ -35,6 +38,7 @@ export class CreateDocumentDto {
 
   @IsString()
   @IsNotEmpty()
+  @MaxLength(100)
   clientName: string;
 
   @IsEmail()
@@ -42,10 +46,12 @@ export class CreateDocumentDto {
 
   @IsString()
   @IsOptional()
+  @MaxLength(30)
   clientPhone?: string;
 
   @IsString()
   @IsOptional()
+  @MaxLength(300)
   clientAddress?: string;
 
   @IsString()
@@ -54,6 +60,7 @@ export class CreateDocumentDto {
 
   @IsString()
   @IsOptional()
+  @MaxLength(10)
   currency?: string;
 
   @IsNumber()
@@ -74,6 +81,7 @@ export class CreateDocumentDto {
 
   @IsString()
   @IsOptional()
+  @MaxLength(2000)
   notes?: string;
 
   @IsArray()
@@ -86,6 +94,7 @@ export class CreateDocumentDto {
 export class UpdateDocumentDto {
   @IsString()
   @IsOptional()
+  @MaxLength(100)
   clientName?: string;
 
   @IsEmail()
@@ -94,14 +103,17 @@ export class UpdateDocumentDto {
 
   @IsString()
   @IsOptional()
+  @MaxLength(30)
   clientPhone?: string;
 
   @IsString()
   @IsOptional()
+  @MaxLength(300)
   clientAddress?: string;
 
   @IsString()
   @IsOptional()
+  @MaxLength(10)
   currency?: string;
 
   @IsNumber()
@@ -122,6 +134,7 @@ export class UpdateDocumentDto {
 
   @IsString()
   @IsOptional()
+  @MaxLength(2000)
   notes?: string;
 
   @IsArray()
@@ -154,6 +167,7 @@ export class DocumentQueryDto {
 
   @IsNumber()
   @IsOptional()
+  @Max(200)
   @Type(() => Number)
   limit?: number = 20;
 

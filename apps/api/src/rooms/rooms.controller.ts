@@ -1,3 +1,4 @@
+import { ApiTags } from '@nestjs/swagger';
 import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, UseInterceptors, UploadedFile, BadRequestException, Header } from '@nestjs/common';
 import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
 import { AuthGuard } from '@nestjs/passport';
@@ -21,6 +22,7 @@ const imageFilter = (_req: any, file: Express.Multer.File, cb: any) => {
   }
 };
 
+@ApiTags('rooms')
 @Controller()
 export class RoomsController {
   constructor(

@@ -23,6 +23,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
 import { ChatModule } from './chat/chat.module';
 import { StaffModule } from './staff/staff.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { CloudinaryModule } from './cloudinary/cloudinary.module';
     ChatModule,
     StaffModule,
     CloudinaryModule,
+    HealthModule,
   ],
   providers: [
     {

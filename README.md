@@ -1,42 +1,45 @@
-# Hotel Booking Pro - SETIFANA
+# Hotel Booking Pro — SETIFANA
 
-Plateforme complète de réservation hôtelière pour l'Hotel SETIFANA à Conakry, Guinée.
+Plateforme complète de réservation hôtelière pour l'Hôtel SETIFANA à Conakry, Guinée.
 
 ## Stack technique
 
-- **Frontend** : Next.js 14, TypeScript, Tailwind CSS, shadcn/ui, Framer Motion
+- **Frontend** : Next.js 14, TypeScript, Tailwind CSS, shadcn/ui
 - **Backend** : NestJS, TypeScript, Prisma ORM, PostgreSQL
 - **Paiements** : Stripe, PayPal, Mobile Money (Orange, MTN, Wave)
-- **Email** : Resend
+- **Email** : Gmail SMTP / Resend
 - **PDF** : PDFKit
-- **Infrastructure** : Docker Compose, Redis
+- **Infrastructure** : Docker Compose, Redis, Nginx
 
-## Démarrage rapide
+---
+
+## Démarrage rapide (local sans Docker)
 
 ### Prérequis
-
 - Node.js 20+
-- Docker & Docker Compose
-- npm ou yarn
+- PostgreSQL 14+ (ou utiliser Docker juste pour la DB)
+- npm 10+
 
 ### Installation
 
 ```bash
-# Cloner le projet
-git clone <repo-url>
-cd hotel-booking-pro
+# 1. Installer les dépendances (tous les workspaces)
+npm ci
 
-# Setup automatique
-chmod +x scripts/setup.sh
-./scripts/setup.sh
-
-# Ou manuellement :
-npm install
+# 2. Copier et remplir les variables d'environnement
 cp .env.example .env
-docker compose up -d postgres redis
-npx prisma migrate dev --name init
-npx prisma generate
-npx ts-node prisma/seed.ts
+# → éditer .env avec DATABASE_URL, JWT_SECRET, JWT_REFRESH_SECRET, etc.
+
+# 3. Valider + générer le client Prisma
+# Utilise le CLI Prisma local (v5.x) — évite les conflits avec un Prisma global v6/v7+
+npm run db:validate
+npm run db:generate
+
+# 4. Appliquer les migrations (base vide → schéma complet)
+node_modules/.bin/prisma migrate deploy
+
+# 5. Seed (données initiales : admin + chambres)
+npm run db:seed
 ```
 
 ### Lancer en développement
@@ -45,98 +48,216 @@ npx ts-node prisma/seed.ts
 npm run dev
 ```
 
-- Frontend : http://localhost:3000
-- Backend API : http://localhost:4000
-- Admin : http://localhost:3000/admin/login
+| Service | URL |
+|---|---|
+| Frontend | http://localhost:3000 |
+| API | http://localhost:4005 |
+| Admin | http://localhost:3000/admin/login |
+| Prisma Studio | `npx prisma studio` |
 
 ### Identifiants admin par défaut
 
-- Email : `admin@setifana.com`
-- Mot de passe : `Admin@2024!`
+| Champ | Valeur |
+|---|---|
+| Email | `admin@setifana.com` |
+| Mot de passe | `Admin@2024!` |
+
+---
+
+## Commandes de vérification
+
+```bash
+# Validation schéma Prisma (utilise le CLI local v5.x)
+npm run db:validate
+
+# Génération du client Prisma
+npm run db:generate
+
+# Build API (NestJS)
+npm run build:api
+# ou : npm run build --workspace=apps/api
+
+# Build Frontend (Next.js)
+npm run build:web
+# ou : npm run build --workspace=apps/web
+
+# Lint (tous les workspaces)
+npm run lint
+
+# Tests unitaires API (93 tests)
+npm run test          # raccourci racine
+# ou :
+npm run test --workspace=apps/api
+```
+
+> ⚠️ **Note Prisma CLI** : Si vous avez Prisma 6+ installé globalement (`npx prisma --version`),
+> utilisez `npm run db:validate` / `npm run db:generate` au lieu de `npx prisma …`
+> pour forcer l'usage de la version locale `^5.22.0` incluse dans `node_modules`.
+
+---
+
+## Déploiement Docker (local / production)
+
+### Prérequis
+- Docker ≥ 24 + Docker Compose v2
+- Un fichier `.env` à la racine (optionnel — les valeurs par défaut sont sécurisées pour le développement)
+
+### Variables obligatoires en production
+
+```bash
+JWT_SECRET=<64 chars random>          # openssl rand -hex 32
+JWT_REFRESH_SECRET=<64 chars random>  # différent de JWT_SECRET
+POSTGRES_PASSWORD=<strong password>
+```
+
+### Lancer la stack complète
+
+```bash
+# Vérifier la config docker-compose
+docker compose config
+
+# Démarrer (build + run)
+docker compose up --build
+
+# En arrière-plan
+docker compose up --build -d
+
+# Seed (première fois uniquement)
+docker compose run --rm seed
+```
+
+### Ports exposés
+
+| Service | Port hôte | Port conteneur |
+|---|---|---|
+| PostgreSQL | 5432 | 5432 |
+| Redis | 6380 | 6379 |
+| API (NestJS) | 4000 | 4000 |
+| Web (Next.js) | 3000 | 3000 |
+| Nginx (proxy) | 80 | 80 |
+
+### Architecture Docker
+
+```
+                  ┌─────────────────────┐
+  Browser ──80──▶ │      Nginx          │
+                  │  /api/*  ──▶ api:4000
+                  │  /*      ──▶ web:3000
+                  └─────────────────────┘
+                         │          │
+                    ┌────┘          └────┐
+                    ▼                    ▼
+              ┌──────────┐       ┌──────────┐
+              │  api:4000│       │  web:3000│
+              │  NestJS  │       │  Next.js │
+              └────┬─────┘       └──────────┘
+                   │
+          ┌────────┴────────┐
+          ▼                 ▼
+    ┌──────────┐     ┌──────────┐
+    │ postgres │     │  redis   │
+    │  :5432   │     │  :6379   │
+    └──────────┘     └──────────┘
+```
+
+### Health checks
+
+- API : `GET http://localhost:4000/api/health`
+- Nginx : `GET http://localhost/nginx-health`
+- Web : `GET http://localhost:3000/`
+
+---
 
 ## Structure du projet
 
 ```
 hotel-booking-pro/
 ├── apps/
-│   ├── web/          # Next.js frontend
-│   └── api/          # NestJS backend
-├── packages/
-│   └── shared/       # Types et utilitaires partagés
+│   ├── api/              # NestJS backend
+│   │   ├── src/
+│   │   │   ├── auth/         # JWT, refresh tokens, vérif. email
+│   │   │   ├── bookings/     # Réservations + anti double-booking
+│   │   │   ├── payments/     # Stripe, PayPal, Mobile Money
+│   │   │   ├── admin/        # Dashboard, stats, notifications
+│   │   │   ├── health/       # GET /api/health
+│   │   │   └── ...
+│   │   └── Dockerfile
+│   └── web/              # Next.js 14 frontend
+│       ├── app/
+│       │   ├── (admin)/      # Back-office admin
+│       │   └── (public)/     # Site vitrine + compte client
+│       └── Dockerfile
 ├── prisma/
-│   ├── schema.prisma # Schéma base de données
-│   └── seed.ts       # Données initiales
-├── scripts/          # Scripts utilitaires
-├── docs/             # Documentation
-└── docker-compose.yml
+│   ├── schema.prisma     # Schéma DB (validé ✅)
+│   ├── migrations/       # Migrations SQL versionnées
+│   └── seed.ts           # Données initiales
+├── nginx/
+│   └── nginx.conf        # Reverse proxy config
+├── docker-compose.yml    # Stack Docker complète
+└── package.json          # Monorepo workspaces
 ```
 
-## API Endpoints
+---
+
+## API Endpoints (sélection)
 
 ### Public
 
 | Méthode | Endpoint | Description |
 |---------|----------|-------------|
-| GET | /api/rooms | Liste des chambres |
-| GET | /api/rooms/:slug | Détail chambre |
-| GET | /api/rooms/featured | Chambres en vedette |
-| GET | /api/availability | Vérifier disponibilité |
-| POST | /api/bookings/quote | Devis réservation |
-| POST | /api/bookings | Créer réservation |
-| GET | /api/bookings/:reference | Détail réservation |
-| POST | /api/payments/stripe/create-session | Paiement Stripe |
-| POST | /api/payments/pay-at-hotel | Paiement à l'hôtel |
-| GET | /api/services | Services hôtel |
-| GET | /api/reviews | Avis clients |
-| POST | /api/contact | Message contact |
+| GET | `/api/health` | Health check (DB + uptime) |
+| GET | `/api/rooms` | Liste des chambres |
+| GET | `/api/rooms/:slug` | Détail chambre |
+| POST | `/api/bookings/quote` | Devis réservation |
+| POST | `/api/bookings` | Créer réservation |
+| GET | `/api/bookings/:reference` | Suivi réservation |
+| POST | `/api/auth/register` | Inscription client |
+| POST | `/api/auth/login` | Connexion |
+| POST | `/api/auth/forgot-password` | Mot de passe oublié |
+| POST | `/api/auth/reset-password` | Réinitialiser MDP |
+| POST | `/api/auth/verify-email` | Vérifier email |
 
-### Admin (authentifié)
+### Auth client (JWT requis)
 
 | Méthode | Endpoint | Description |
 |---------|----------|-------------|
-| GET | /api/admin/dashboard/stats | KPIs |
-| GET | /api/admin/bookings | Liste réservations |
-| PATCH | /api/admin/bookings/:id/status | Modifier statut |
-| POST | /api/admin/rooms | Créer chambre |
-| PATCH | /api/admin/rooms/:id | Modifier chambre |
-| GET | /api/admin/export/bookings.csv | Export CSV |
+| GET | `/api/auth/me` | Profil utilisateur |
+| PATCH | `/api/auth/profile` | Modifier profil |
+| GET | `/api/auth/my-bookings` | Mes réservations |
 
-## Déploiement
+### Admin (JWT + rôle ADMIN/STAFF)
 
-### Frontend (Vercel)
+| Méthode | Endpoint | Description |
+|---------|----------|-------------|
+| GET | `/api/admin/dashboard/stats` | KPIs |
+| GET | `/api/admin/dashboard/chart/occupancy` | Taux d'occupation hebdo |
+| GET | `/api/admin/dashboard/chart/revenue` | Revenus mensuels |
+| GET | `/api/admin/notifications` | Réservations en attente |
+| GET | `/api/admin/bookings` | Liste réservations |
+| PATCH | `/api/admin/bookings/:id/status` | Modifier statut |
+| GET | `/api/admin/export/bookings.csv` | Export CSV |
 
-```bash
-cd apps/web
-vercel deploy
-```
+---
 
-### Backend (Railway / Render)
+## Sécurité
 
-Configurer les variables d'environnement et déployer le dossier `apps/api`.
+- **Anti double-booking** : `SELECT ... FOR UPDATE` (verrou pessimiste au niveau ligne)
+- **Auth** : JWT access (15 min) + refresh token rotatif (7 jours, stocké en DB)
+- **Rate limiting** : ThrottlerGuard global (100 req/60s), surcharge sur les routes sensibles
+- **XSS** : SanitizePipe global (strip HTML sur tous les body)
+- **Whitelist settings** : seules les clés autorisées sont acceptées en `PATCH /admin/settings`
+- **RBAC** : rôles ADMIN / STAFF / CUSTOMER
+- **Cookies** : `httpOnly`, `secure` (prod), `sameSite: strict`
+- **Secrets** : validation au démarrage — arrêt si JWT_SECRET absent en production
 
-### Docker (production)
-
-```bash
-docker compose up -d
-```
+---
 
 ## Variables d'environnement
 
-Voir `.env.example` pour la liste complète.
+Voir `.env.example` pour la liste complète et commentée.
 
-## Fonctionnalités principales
-
-- Site vitrine premium SEO-friendly
-- Moteur de réservation en 3 étapes
-- Paiement multi-providers (Stripe, PayPal, Mobile Money, à l'hôtel)
-- Confirmation par email automatique
-- Génération de reçu PDF
-- Webhooks sécurisés pour validation paiement
-- Back-office admin complet (dashboard KPI, CRUD, exports)
-- Vérification stricte des disponibilités (anti double-booking)
-- Responsive mobile-first
-- Sécurité JWT + RBAC + rate limiting
+---
 
 ## Licence
 
-Propriétaire - Hotel SETIFANA
+Propriétaire — Hôtel SETIFANA, Conakry, Guinée.

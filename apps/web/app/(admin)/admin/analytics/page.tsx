@@ -98,7 +98,7 @@ export default function AdminAnalyticsPage() {
                     </div>
                   ))}
                 </div>
-                <div className="flex items-center gap-4 mt-4 text-xs text-gray-500">
+                <div className="flex flex-wrap items-center gap-3 mt-4 text-xs text-gray-500">
                   <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-green-500"></span> &gt;80%</span>
                   <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-blue-500"></span> 50-80%</span>
                   <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-yellow-500"></span> 20-50%</span>

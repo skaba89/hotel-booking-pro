@@ -71,17 +71,43 @@ export class SettingsController {
     return this.prisma.setting.findMany({ orderBy: { key: 'asc' } });
   }
 
+  /** All keys that the admin UI is allowed to write. Prevents arbitrary key injection. */
+  private static readonly ALLOWED_KEYS = new Set([
+    'hotel_name', 'hotel_email', 'hotel_phone', 'hotel_whatsapp',
+    'hotel_address', 'hotel_currency', 'hotel_tax_rate',
+    'check_in_time', 'check_out_time', 'cancellation_hours',
+    'stripe_enabled', 'paypal_enabled', 'mobile_money_enabled', 'pay_at_hotel_enabled',
+    'theme_primary_color', 'theme_accent_color', 'theme_font',
+    'theme_logo_url', 'theme_hero_style',
+    'feature_whatsapp', 'feature_chatbot', 'feature_social_proof',
+    'feature_newsletter', 'feature_reviews', 'feature_loyalty',
+    'feature_transfers', 'feature_comparison', 'feature_cookie_consent',
+    'maintenance_mode',
+    // Email / SMTP settings (values set by admin)
+    'admin_email', 'notification_email',
+  ]);
+
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('ADMIN')
   @Patch('admin/settings')
   async update(@Body() body: Record<string, string>) {
-    const updates = Object.entries(body).map(([key, value]) =>
-      this.prisma.setting.upsert({
+    const MAX_VALUE_LENGTH = 2000;
+    const entries = Object.entries(body);
+
+    // Reject unknown keys — prevents storing arbitrary data under unexpected names
+    const unknownKeys = entries.map(([k]) => k).filter((k) => !SettingsController.ALLOWED_KEYS.has(k));
+    if (unknownKeys.length > 0) {
+      throw new BadRequestException(`Clés non autorisées : ${unknownKeys.join(', ')}`);
+    }
+
+    const updates = entries.map(([key, value]) => {
+      const safeValue = String(value).slice(0, MAX_VALUE_LENGTH);
+      return this.prisma.setting.upsert({
         where: { key },
-        update: { value: String(value) },
-        create: { key, value: String(value), type: 'string' },
-      }),
-    );
+        update: { value: safeValue },
+        create: { key, value: safeValue, type: 'string' },
+      });
+    });
     await Promise.all(updates);
     // Invalider le cache de la route publique pour que les couleurs/paramètres
     // soient immédiatement visibles sur le site sans attendre l'expiration du cache.

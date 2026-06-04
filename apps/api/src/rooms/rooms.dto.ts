@@ -1,17 +1,20 @@
-import { IsString, IsNumber, IsOptional, IsBoolean, IsArray, IsEnum, IsNotEmpty, Min } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsBoolean, IsArray, IsEnum, IsNotEmpty, Min, Max, MaxLength } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PartialType } from '@nestjs/mapped-types';
 
 export class CreateRoomDto {
   @IsString()
+  @MaxLength(100)
   name: string;
 
   @IsString()
   @IsOptional()
+  @MaxLength(5000)
   description?: string;
 
   @IsString()
   @IsOptional()
+  @MaxLength(500)
   shortDescription?: string;
 
   @IsNumber()
@@ -32,6 +35,7 @@ export class CreateRoomDto {
 
   @IsString()
   @IsOptional()
+  @MaxLength(50)
   bedType?: string;
 
   @IsNumber()
@@ -61,6 +65,7 @@ export class RoomQueryDto {
 
   @IsNumber()
   @IsOptional()
+  @Max(100)
   @Type(() => Number)
   limit?: number = 10;
 
@@ -111,9 +116,11 @@ export class AvailabilityQueryDto {
 export class AddRoomImageDto {
   @IsString()
   @IsNotEmpty()
+  @MaxLength(500)
   imageUrl: string;
 
   @IsString()
   @IsOptional()
+  @MaxLength(200)
   altText?: string;
 }

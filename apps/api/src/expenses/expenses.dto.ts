@@ -4,6 +4,8 @@ import {
   IsOptional,
   IsEnum,
   Min,
+  Max,
+  MaxLength,
   IsNotEmpty,
   IsDateString,
 } from 'class-validator';
@@ -36,6 +38,7 @@ export class CreateExpenseDto {
 
   @IsString()
   @IsNotEmpty()
+  @MaxLength(500)
   description: string;
 
   @IsNumber()
@@ -45,6 +48,7 @@ export class CreateExpenseDto {
 
   @IsString()
   @IsOptional()
+  @MaxLength(10)
   currency?: string;
 
   @IsDateString()
@@ -52,10 +56,12 @@ export class CreateExpenseDto {
 
   @IsString()
   @IsOptional()
+  @MaxLength(200)
   vendor?: string;
 
   @IsString()
   @IsOptional()
+  @MaxLength(100)
   invoiceNumber?: string;
 
   @IsEnum(EXPENSE_PAYMENT_METHODS)
@@ -64,10 +70,12 @@ export class CreateExpenseDto {
 
   @IsString()
   @IsOptional()
+  @MaxLength(500)
   receiptUrl?: string;
 
   @IsString()
   @IsOptional()
+  @MaxLength(1000)
   notes?: string;
 }
 
@@ -79,6 +87,7 @@ export class UpdateExpenseDto {
   @IsString()
   @IsOptional()
   @IsNotEmpty()
+  @MaxLength(500)
   description?: string;
 
   @IsNumber()
@@ -89,6 +98,7 @@ export class UpdateExpenseDto {
 
   @IsString()
   @IsOptional()
+  @MaxLength(10)
   currency?: string;
 
   @IsDateString()
@@ -97,10 +107,12 @@ export class UpdateExpenseDto {
 
   @IsString()
   @IsOptional()
+  @MaxLength(200)
   vendor?: string;
 
   @IsString()
   @IsOptional()
+  @MaxLength(100)
   invoiceNumber?: string;
 
   @IsEnum(EXPENSE_PAYMENT_METHODS)
@@ -109,10 +121,12 @@ export class UpdateExpenseDto {
 
   @IsString()
   @IsOptional()
+  @MaxLength(500)
   receiptUrl?: string;
 
   @IsString()
   @IsOptional()
+  @MaxLength(1000)
   notes?: string;
 }
 
@@ -124,6 +138,7 @@ export class ExpenseQueryDto {
 
   @IsNumber()
   @IsOptional()
+  @Max(200)
   @Type(() => Number)
   limit?: number = 20;
 

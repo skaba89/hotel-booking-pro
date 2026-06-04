@@ -8,6 +8,7 @@ import {
   Param,
   Query,
   UseGuards,
+  BadRequestException,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { PrismaService } from '../prisma/prisma.service';
@@ -37,6 +38,7 @@ export class StaffController {
         ...(active === 'false' ? { isActive: false } : {}),
       },
       orderBy: [{ isActive: 'desc' }, { fullName: 'asc' }],
+      take: 500,
     });
   }
 
@@ -73,19 +75,27 @@ export class StaffController {
     @Query('to') to?: string,
     @Query('staffId') staffId?: string,
   ) {
+    // Validate date strings before passing to Prisma to avoid silent Invalid Date errors
+    const fromDate = from ? new Date(from) : undefined;
+    const toDate   = to   ? new Date(to)   : undefined;
+    if (fromDate && isNaN(fromDate.getTime())) throw new BadRequestException('Date "from" invalide');
+    if (toDate   && isNaN(toDate.getTime()))   throw new BadRequestException('Date "to" invalide');
+
     return this.prisma.staffShift.findMany({
       where: {
         ...(staffId ? { staffId } : {}),
-        ...(from || to
+        ...(fromDate || toDate
           ? {
               date: {
-                ...(from ? { gte: new Date(from) } : {}),
-                ...(to ? { lte: new Date(to) } : {}),
+                ...(fromDate ? { gte: fromDate } : {}),
+                ...(toDate   ? { lte: toDate }   : {}),
               },
             }
           : {}),
       },
       orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
+      // Hard-cap: shifts accumulate over time; paginate at the UI level if needed
+      take: 1_000,
     });
   }
 

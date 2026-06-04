@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -23,25 +23,37 @@ import {
   FileText,
   Wallet,
   FileBarChart,
+  CalendarDays,
 } from 'lucide-react';
-import { api } from '@/lib/api';
+import { api, saveAuthToken, loadAuthToken, clearAuth } from '@/lib/api';
 import { useTheme } from '@/lib/theme-provider';
 
+interface Notification {
+  id: string;
+  bookingReference: string;
+  customerName: string;
+  checkInDate: string;
+  createdAt: string;
+  room?: { name: string };
+}
+
 const navItems = [
-  { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/admin/bookings', label: 'Reservations', icon: CalendarCheck },
-  { href: '/admin/rooms', label: 'Chambres', icon: BedDouble },
-  { href: '/admin/payments', label: 'Paiements', icon: CreditCard },
-  { href: '/admin/documents', label: 'Devis & Factures', icon: FileText },
-  { href: '/admin/expenses', label: 'Depenses', icon: Wallet },
-  { href: '/admin/reports', label: 'Rapports', icon: FileBarChart },
-  { href: '/admin/customers', label: 'Clients', icon: Users },
-  { href: '/admin/staff', label: 'Personnel', icon: UserCog },
-  { href: '/admin/services', label: 'Services', icon: ConciergeBell },
-  { href: '/admin/reviews', label: 'Avis', icon: Star },
-  { href: '/admin/contact-messages', label: 'Messages', icon: MessageSquare },
-  { href: '/admin/analytics', label: 'Analytiques', icon: BarChart3 },
-  { href: '/admin/settings', label: 'Parametres', icon: Settings },
+  { href: '/admin/dashboard',       label: 'Dashboard',       icon: LayoutDashboard },
+  { href: '/admin/bookings',        label: 'Réservations',    icon: CalendarCheck },
+  { href: '/admin/calendar',        label: 'Calendrier',      icon: CalendarDays },
+  { href: '/admin/rooms',           label: 'Chambres',        icon: BedDouble },
+  { href: '/admin/payments',        label: 'Paiements',       icon: CreditCard },
+  { href: '/admin/documents',       label: 'Devis & Factures',icon: FileText },
+  { href: '/admin/expenses',        label: 'Dépenses',        icon: Wallet },
+  { href: '/admin/reports',         label: 'Rapports',        icon: FileBarChart },
+  { href: '/admin/customers',       label: 'Clients',         icon: Users },
+  { href: '/admin/users',           label: 'Utilisateurs',    icon: UserCog },
+  { href: '/admin/staff',           label: 'Personnel',       icon: ConciergeBell },
+  { href: '/admin/services',        label: 'Services',        icon: ConciergeBell },
+  { href: '/admin/reviews',         label: 'Avis',            icon: Star },
+  { href: '/admin/contact-messages',label: 'Messages',        icon: MessageSquare },
+  { href: '/admin/analytics',       label: 'Analytiques',     icon: BarChart3 },
+  { href: '/admin/settings',        label: 'Paramètres',      icon: Settings },
 ];
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -51,7 +63,48 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const lastReadRef = useRef<number>(0);
   const hotelName = settings.hotel_name || 'SETIFANA';
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const res = await api.get<{ pendingCount: number; recent: Notification[] }>('/admin/notifications');
+      const data = res as any;
+      const recent: Notification[] = data.recent || [];
+      setNotifications(recent);
+      // Unread = items created after last read timestamp
+      const unread = recent.filter(
+        (n) => new Date(n.createdAt).getTime() > lastReadRef.current,
+      ).length;
+      setUnreadCount(unread);
+    } catch {
+      // Silently ignore — notifications are non-critical
+    }
+  }, []);
+
+  // Load last-read timestamp from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem('admin_notif_read_at');
+    if (stored) lastReadRef.current = Number(stored);
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 30_000); // poll every 30s
+    return () => clearInterval(interval);
+  }, [fetchNotifications]);
+
+  function handleOpenNotifications() {
+    setNotifOpen((v) => !v);
+    setDropdownOpen(false);
+    if (!notifOpen) {
+      // Mark as read
+      const now = Date.now();
+      lastReadRef.current = now;
+      localStorage.setItem('admin_notif_read_at', String(now));
+      setUnreadCount(0);
+    }
+  }
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
@@ -59,14 +112,36 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       router.push('/admin/login');
       return;
     }
-    try { setUser(JSON.parse(userData)); } catch {
+    try {
+      const parsed = JSON.parse(userData);
+
+      // ── Role guard — redirect non-admin/staff accounts ─────────────────
+      if (parsed.role !== 'ADMIN' && parsed.role !== 'STAFF') {
+        clearAuth();
+        router.push('/admin/login');
+        return;
+      }
+
+      // ── Restore token into api client on every mount/hydration ─────────
+      const token = loadAuthToken();
+      if (token) {
+        saveAuthToken(token); // re-sets it on the ApiClient instance
+      } else {
+        // No token stored — kick back to login
+        clearAuth();
+        router.push('/admin/login');
+        return;
+      }
+
+      setUser(parsed);
+    } catch {
       router.push('/admin/login');
     }
   }, [router]);
 
   const handleLogout = async () => {
     try { await api.post('/auth/logout'); } catch {}
-    localStorage.removeItem('user');
+    clearAuth();
     router.push('/admin/login');
   };
 
@@ -116,8 +191,10 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                 {user?.firstName?.[0] || 'A'}
               </div>
               <div>
-                <p className="text-sm font-medium">{user?.firstName || user?.email?.split('@')[0] || 'Admin'}</p>
-                <p className="text-xs text-white/50">{user?.role || 'ADMIN'}</p>
+                <p className="text-sm font-medium">{user?.fullName || user?.email?.split('@')[0] || 'Admin'}</p>
+                <p className="text-xs text-white/50">
+                  {user?.role === 'ADMIN' ? '🔑 Administrateur' : user?.role === 'STAFF' ? '👤 Personnel' : user?.role || 'ADMIN'}
+                </p>
               </div>
             </div>
             <button onClick={handleLogout} className="text-white/50 hover:text-red-400 transition-colors" title="Deconnexion">
@@ -182,10 +259,66 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className="flex items-center gap-2">
-            <button aria-label="Notifications" className="relative p-2 rounded-lg hover:bg-gray-100">
-              <Bell className="w-5 h-5 text-gray-600" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
-            </button>
+            {/* Notifications Bell */}
+            <div className="relative">
+              <button
+                aria-label="Notifications"
+                onClick={handleOpenNotifications}
+                className="relative p-2 rounded-lg hover:bg-gray-100"
+              >
+                <Bell className="w-5 h-5 text-gray-600" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1 right-1 min-w-[16px] h-4 bg-red-500 rounded-full text-white text-[9px] font-bold flex items-center justify-center px-0.5">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {notifOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setNotifOpen(false)} />
+                  <div className="absolute right-0 top-full mt-1 w-[min(320px,calc(100vw-1rem))] bg-white rounded-xl shadow-xl border z-50 overflow-hidden">
+                    <div className="px-4 py-3 border-b flex items-center justify-between">
+                      <p className="text-sm font-semibold text-gray-900">Réservations en attente</p>
+                      <Link
+                        href="/admin/bookings?status=PENDING"
+                        className="text-xs text-[#C8A45D] hover:underline"
+                        onClick={() => setNotifOpen(false)}
+                      >
+                        Voir tout
+                      </Link>
+                    </div>
+                    <div className="max-h-72 overflow-y-auto divide-y">
+                      {notifications.length === 0 ? (
+                        <p className="px-4 py-6 text-sm text-center text-gray-400">
+                          Aucune réservation en attente
+                        </p>
+                      ) : (
+                        notifications.map((n) => (
+                          <Link
+                            key={n.id}
+                            href="/admin/bookings"
+                            onClick={() => setNotifOpen(false)}
+                            className="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition-colors"
+                          >
+                            <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                              <CalendarCheck className="w-4 h-4 text-amber-600" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-medium text-gray-900 truncate">{n.customerName}</p>
+                              <p className="text-[10px] text-gray-500">{n.room?.name} · {n.bookingReference}</p>
+                              <p className="text-[10px] text-gray-400 mt-0.5">
+                                {new Date(n.createdAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                            </div>
+                          </Link>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
 
             <div className="relative">
               <button

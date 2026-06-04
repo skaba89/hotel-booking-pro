@@ -1,6 +1,7 @@
+import { ApiTags } from '@nestjs/swagger';
 import { Controller, Post, Body, BadRequestException } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { IsString, IsEmail, IsNotEmpty, IsNumber, Min, Max, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty } from 'class-validator';
 import { PaymentsService } from './payments.service';
 import { Public } from '../common/decorators';
 
@@ -34,6 +35,7 @@ class InitiateMobileMoneyDto {
   phoneNumber: string;
 }
 
+@ApiTags('payments')
 @Controller()
 export class PaymentsController {
   constructor(private paymentsService: PaymentsService) {}

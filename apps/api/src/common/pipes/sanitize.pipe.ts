@@ -35,11 +35,13 @@ export class SanitizePipe implements PipeTransform {
   }
 
   private stripHtml(input: string): string {
+    // NOTE: Do NOT unescape HTML entities (&lt; → <, &gt; → >) after stripping.
+    // Doing so would re-introduce raw HTML tags from entity-encoded payloads
+    // (e.g. "&lt;script&gt;" → "<script>"). React escapes on render so stored
+    // entities are safe; emails/PDFs must never render raw user HTML anyway.
     return input
       .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
       .replace(/<[^>]*>/g, '')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
       .replace(/javascript:/gi, '')
       .replace(/on\w+\s*=/gi, '')
       .trim();

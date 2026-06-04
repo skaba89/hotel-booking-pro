@@ -122,16 +122,16 @@ export default function AdminNewRoomPage() {
               <div><label className="text-sm font-medium">Nom *</label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></div>
               <div><label className="text-sm font-medium">Description courte</label><Input value={form.shortDescription} onChange={(e) => setForm({ ...form, shortDescription: e.target.value })} /></div>
               <div><label className="text-sm font-medium">Description complète</label><textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm" /></div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div><label className="text-sm font-medium">Prix par nuit (GNF) *</label><Input type="number" value={form.pricePerNight} onChange={(e) => setForm({ ...form, pricePerNight: e.target.value })} required /></div>
                 <div><label className="text-sm font-medium">Superficie (m²)</label><Input type="number" value={form.sizeM2} onChange={(e) => setForm({ ...form, sizeM2: e.target.value })} /></div>
               </div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div><label className="text-sm font-medium">Capacité totale</label><Input type="number" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} /></div>
                 <div><label className="text-sm font-medium">Adultes max</label><Input type="number" value={form.adultsCapacity} onChange={(e) => setForm({ ...form, adultsCapacity: e.target.value })} /></div>
                 <div><label className="text-sm font-medium">Enfants max</label><Input type="number" value={form.childrenCapacity} onChange={(e) => setForm({ ...form, childrenCapacity: e.target.value })} /></div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div><label className="text-sm font-medium">Type de lit</label><Input value={form.bedType} onChange={(e) => setForm({ ...form, bedType: e.target.value })} /></div>
                 <div>
                   <label className="text-sm font-medium">Statut</label>
@@ -144,12 +144,12 @@ export default function AdminNewRoomPage() {
               </div>
               <div>
                 <label className="text-sm font-medium mb-2 block">Équipements</label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {amenityOptions.map((a) => (
-                    <label key={a} className="flex items-center space-x-2 text-sm">
+                    <label key={a} className="flex items-center space-x-2 text-sm cursor-pointer">
                       <input type="checkbox" checked={form.amenities.includes(a)} onChange={(e) => {
                         setForm({ ...form, amenities: e.target.checked ? [...form.amenities, a] : form.amenities.filter((x) => x !== a) });
-                      }} />
+                      }} className="rounded" />
                       <span className="capitalize">{a.replace(/_/g, ' ')}</span>
                     </label>
                   ))}

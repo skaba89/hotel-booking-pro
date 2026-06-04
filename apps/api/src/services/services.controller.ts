@@ -15,6 +15,7 @@ export class ServicesController {
     return this.prisma.hotelService.findMany({
       where: { isActive: true },
       orderBy: { sortOrder: 'asc' },
+      take: 100,
     });
   }
 

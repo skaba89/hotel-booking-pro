@@ -2,12 +2,43 @@ const API_URL = typeof window === 'undefined'
   ? (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4005')
   : '';
 
+// ── Token helpers (localStorage, client-side only) ─────────────────────────
+const TOKEN_KEY = 'auth_access_token';
+
+export function saveAuthToken(token: string | null) {
+  if (typeof window === 'undefined') return;
+  if (token) {
+    localStorage.setItem(TOKEN_KEY, token);
+    api.setToken(token);
+  } else {
+    localStorage.removeItem(TOKEN_KEY);
+    api.setToken(null);
+  }
+}
+
+export function loadAuthToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function clearAuth() {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem('user');
+  api.setToken(null);
+}
+
 class ApiClient {
   private baseUrl: string;
   private token: string | null = null;
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
+    // Restore token from localStorage on client-side instantiation
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(TOKEN_KEY);
+      if (stored) this.token = stored;
+    }
   }
 
   setToken(token: string | null) {
@@ -22,7 +53,7 @@ class ApiClient {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({}),
+        body: JSON.stringify({ refreshToken: '' }), // cookies used if available
       });
 
       if (!res.ok) return false;
@@ -30,6 +61,7 @@ class ApiClient {
       const data = await res.json();
       if (data.accessToken) {
         this.token = data.accessToken;
+        localStorage.setItem(TOKEN_KEY, data.accessToken); // persist refreshed token
       }
       return true;
     } catch {
@@ -38,6 +70,12 @@ class ApiClient {
   }
 
   private async request<T>(endpoint: string, options: RequestInit = {}, isRetry = false): Promise<T> {
+    // Lazily restore token from localStorage if not set (e.g. after SSR hydration)
+    if (!this.token && typeof window !== 'undefined') {
+      const stored = localStorage.getItem(TOKEN_KEY);
+      if (stored) this.token = stored;
+    }
+
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       ...(options.headers as Record<string, string>),
@@ -58,11 +96,11 @@ class ApiClient {
       if (refreshed) {
         return this.request<T>(endpoint, options, true);
       }
+      // Refresh failed — clear session and redirect to login
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('user');
-        this.token = null;
+        clearAuth();
         if (window.location.pathname.startsWith('/admin')) {
-          window.location.href = '/admin/login';
+          window.location.href = '/admin/login?expired=1';
         }
       }
     }
@@ -501,4 +539,58 @@ export async function getFinancialReport(params?: { from?: string; to?: string }
     ? '?' + new URLSearchParams(Object.entries(params).filter(([, v]) => v) as [string, string][]).toString()
     : '';
   return api.get<FinancialReport>(`/admin/reports/financial${query}`);
+}
+
+// ============================================================
+// Gestion des utilisateurs (ADMIN uniquement)
+// ============================================================
+
+export type UserRole = 'ADMIN' | 'STAFF' | 'CUSTOMER';
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  fullName: string;
+  phone?: string;
+  role: UserRole;
+  isActive: boolean;
+  emailVerifiedAt?: string | null;
+  createdAt: string;
+}
+
+export interface CreateUserInput {
+  email: string;
+  password: string;
+  fullName: string;
+  phone?: string;
+  role: UserRole;
+}
+
+export interface UpdateUserInput {
+  fullName?: string;
+  phone?: string;
+  role?: UserRole;
+  isActive?: boolean;
+  password?: string;
+}
+
+export async function getAdminUsers(params?: Record<string, string>) {
+  const query = params ? '?' + new URLSearchParams(params).toString() : '';
+  return api.get<{ data: AdminUser[]; total: number; page: number; totalPages: number }>(`/admin/users${query}`);
+}
+
+export async function createAdminUser(data: CreateUserInput) {
+  return api.post<AdminUser>('/admin/users', data);
+}
+
+export async function updateAdminUser(id: string, data: UpdateUserInput) {
+  return api.patch<AdminUser>(`/admin/users/${id}`, data);
+}
+
+export async function deactivateAdminUser(id: string) {
+  return api.patch<AdminUser>(`/admin/users/${id}`, { isActive: false });
+}
+
+export async function reactivateAdminUser(id: string) {
+  return api.patch<AdminUser>(`/admin/users/${id}`, { isActive: true });
 }

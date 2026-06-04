@@ -36,17 +36,17 @@ function CopyButton({ text }: { text: string }) {
 
 function StripeTestCards() {
   return (
-    <div className="mt-4 rounded-lg border border-yellow-300 bg-yellow-50 p-4">
+    <div className="mt-4 rounded-lg border border-yellow-300 bg-yellow-50 p-3 sm:p-4">
       <div className="flex items-center gap-2 mb-3 text-yellow-800 font-semibold text-sm">
         <FlaskConical className="w-4 h-4" />
         Mode test — Cartes Stripe virtuelles
       </div>
       <div className="space-y-2">
         {STRIPE_TEST_CARDS.map((c) => (
-          <div key={c.number} className="flex items-center justify-between text-xs bg-white rounded-md px-3 py-2 border border-yellow-200">
-            <span className="text-gray-500 w-36">{c.label}</span>
+          <div key={c.number} className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs bg-white rounded-md px-3 py-2 border border-yellow-200 gap-1">
+            <span className="text-gray-500 font-medium">{c.label}</span>
             <div className="flex items-center gap-1 font-mono text-gray-800">
-              <span>{c.number}</span>
+              <span className="break-all">{c.number}</span>
               <CopyButton text={c.number} />
             </div>
             <span className="text-gray-400">{c.expiry} / {c.cvc}</span>

@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { CalendarCheck, DollarSign, TrendingUp, BedDouble, Users, AlertCircle, CheckCircle, XCircle, ArrowUpRight, ArrowDownRight, Clock, Eye } from 'lucide-react';
+import { CalendarCheck, DollarSign, TrendingUp, BedDouble, AlertCircle, CheckCircle, XCircle, ArrowUpRight, ArrowDownRight, Clock, Eye } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AdminLayout } from '@/components/admin/admin-layout';
+import { BarChart, LineChart } from '@/components/ui/mini-chart';
 import { getAdminStats, getLatestBookings, getLatestPayments, api } from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/utils';
 
@@ -20,6 +21,8 @@ export default function AdminDashboardPage() {
   const [stats, setStats] = useState<any>(null);
   const [latestBookings, setLatestBookings] = useState<any[]>([]);
   const [latestPayments, setLatestPayments] = useState<any[]>([]);
+  const [occupancyChart, setOccupancyChart] = useState<{ label: string; value: number }[]>([]);
+  const [revenueChart, setRevenueChart] = useState<{ label: string; value: number }[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -27,10 +30,24 @@ export default function AdminDashboardPage() {
       getAdminStats(),
       getLatestBookings().catch(() => []),
       getLatestPayments().catch(() => []),
-    ]).then(([statsData, bookings, payments]) => {
+      api.get<any[]>('/admin/dashboard/chart/occupancy?weeks=8').catch(() => []),
+      api.get<any[]>('/admin/dashboard/chart/revenue?months=6').catch(() => []),
+    ]).then(([statsData, bookings, payments, occ, rev]) => {
       setStats(statsData);
       setLatestBookings(bookings || []);
       setLatestPayments(payments || []);
+      setOccupancyChart(
+        ((occ as any) || []).map((d: any) => ({
+          label: new Date(d.weekStart + 'T12:00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }),
+          value: d.occupancy,
+        })),
+      );
+      setRevenueChart(
+        ((rev as any) || []).map((d: any) => ({
+          label: d.label,
+          value: d.revenue,
+        })),
+      );
     }).catch(console.error).finally(() => setLoading(false));
   }, []);
 
@@ -99,6 +116,60 @@ export default function AdminDashboardPage() {
                   </CardContent>
                 </Card>
               ))}
+            </div>
+
+            {/* Charts */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-semibold text-gray-700">
+                    Taux d&apos;occupation — 8 dernières semaines
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  {occupancyChart.length > 0 ? (
+                    <>
+                      <BarChart
+                        data={occupancyChart}
+                        color="#C8A45D"
+                        height={110}
+                        unit="%"
+                      />
+                      <p className="text-xs text-muted-foreground mt-2 text-right">
+                        Semaine en cours : <span className="font-semibold text-primary">{occupancyChart[occupancyChart.length - 1]?.value ?? 0}%</span>
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-xs text-muted-foreground py-8 text-center">Pas encore de données</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-semibold text-gray-700">
+                    Revenus encaissés — 6 derniers mois
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  {revenueChart.length > 0 ? (
+                    <>
+                      <LineChart
+                        data={revenueChart}
+                        color="#071B33"
+                        fillColor="#071B33"
+                        height={110}
+                        formatValue={(v) => formatCurrency(v)}
+                      />
+                      <p className="text-xs text-muted-foreground mt-2 text-right">
+                        Ce mois : <span className="font-semibold text-primary">{formatCurrency(revenueChart[revenueChart.length - 1]?.value ?? 0)}</span>
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-xs text-muted-foreground py-8 text-center">Pas encore de données</p>
+                  )}
+                </CardContent>
+              </Card>
             </div>
 
             {/* Latest Bookings & Payments */}

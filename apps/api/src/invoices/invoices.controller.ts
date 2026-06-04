@@ -1,19 +1,18 @@
-import { Controller, Get, Post, Param, Query, Res, NotFoundException, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { Controller, Get, Post, Param, Query, Res, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Throttle } from '@nestjs/throttler';
 import { Response } from 'express';
-import { PrismaService } from '../prisma/prisma.service';
-import { PdfService } from '../pdf/pdf.service';
 import { Public, Roles } from '../common/decorators';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { InvoicesService } from './invoices.service';
 
+@ApiTags('invoices')
 @Controller()
 export class InvoicesController {
-  constructor(
-    private prisma: PrismaService,
-    private pdfService: PdfService,
-  ) {}
+  constructor(private invoicesService: InvoicesService) {}
 
+  @ApiOperation({ summary: 'Télécharger le reçu PDF d\'une réservation' })
   @Public()
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Get('invoices/:bookingReference/pdf')
@@ -22,36 +21,23 @@ export class InvoicesController {
     @Query('lang') lang = 'fr',
     @Res() res: Response,
   ) {
-    const booking = await this.prisma.booking.findUnique({
-      where: { bookingReference },
-      include: { room: true, invoices: true },
-    });
-
-    if (!booking) throw new NotFoundException('Réservation non trouvée');
-
-    const safeLang = ['fr', 'en'].includes(lang) ? lang : 'fr';
-    const pdfBuffer = await this.pdfService.generateBookingReceipt(booking, safeLang);
+    const { buffer, reference } = await this.invoicesService.generatePdfBuffer(bookingReference, lang);
 
     res.set({
       'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="recu-${bookingReference}.pdf"`,
-      'Content-Length': pdfBuffer.length,
+      'Content-Disposition': `attachment; filename="recu-${reference}.pdf"`,
+      'Content-Length': buffer.length,
     });
 
-    res.end(pdfBuffer);
+    res.end(buffer);
   }
 
+  @ApiOperation({ summary: 'Regénérer la facture d\'une réservation (ADMIN)' })
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('ADMIN')
   @Post('admin/invoices/:bookingId/regenerate')
   async regenerate(@Param('bookingId') bookingId: string) {
-    const booking = await this.prisma.booking.findUnique({
-      where: { id: bookingId },
-      include: { room: true },
-    });
-
-    if (!booking) throw new NotFoundException('Réservation non trouvée');
-
+    const booking = await this.invoicesService.findBookingForRegeneration(bookingId);
     return { message: 'Facture régénérée', bookingReference: booking.bookingReference };
   }
 }

@@ -1,3 +1,4 @@
+import { ApiTags } from '@nestjs/swagger';
 import {
   Controller,
   Get,
@@ -24,6 +25,7 @@ import {
 import { Public, Roles } from '../common/decorators';
 import { RolesGuard } from '../common/guards/roles.guard';
 
+@ApiTags('documents')
 @Controller()
 export class DocumentsController {
   constructor(private readonly documents: DocumentsService) {}

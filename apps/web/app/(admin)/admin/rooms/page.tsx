@@ -97,7 +97,7 @@ export default function AdminRoomsPage() {
   return (
     <AdminLayout>
       <div>
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Chambres</h1>
             <p className="text-sm text-gray-500">{rooms.length} chambre(s) au total</p>

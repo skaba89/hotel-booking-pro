@@ -49,6 +49,6 @@ EXPOSE 4000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider "http://127.0.0.1:${PORT}/api/health" || exit 1
 
-# Apply pending DB migrations (no-op if already applied), then start the server.
-# NestJS outputs src/main.ts to dist/main.js with the current nest-cli.json.
-CMD ["sh", "-c", "node node_modules/prisma/build/index.js migrate deploy && node dist/main.js"]
+# Apply pending DB migrations, then start the server.
+# Current TypeScript config emits the NestJS entrypoint at dist/src/main.js.
+CMD ["sh", "-c", "node node_modules/prisma/build/index.js migrate deploy && node dist/src/main.js"]

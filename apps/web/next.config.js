@@ -1,6 +1,10 @@
 /** @type {import('next').NextConfig} */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4005';
+const DEFAULT_API_URL = process.env.NODE_ENV === 'production'
+  ? 'https://hotel-setifana-api.onrender.com'
+  : 'http://localhost:4005';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_URL;
 
 const nextConfig = {
   // Note: 'standalone' output removed for Netlify compatibility

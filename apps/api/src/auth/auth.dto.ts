@@ -37,10 +37,11 @@ export class RegisterDto {
 }
 
 export class RefreshTokenDto {
-  @ApiPropertyOptional({ description: 'Refresh token (optionnel si cookie refresh_token présent)' })
+  @ApiPropertyOptional({ description: 'Refresh token optionnel si le cookie refresh_token est présent' })
   @IsString()
+  @IsOptional()
   @IsNotEmpty()
-  refreshToken: string;
+  refreshToken?: string;
 }
 
 export class ChangePasswordDto {

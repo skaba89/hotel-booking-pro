@@ -2,7 +2,8 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+// @nestjs/swagger is loaded dynamically below (dev only) so a missing package
+// or incompatible peer in production never crashes the API at startup.
 import helmet from 'helmet';
 import * as cookieParser from 'cookie-parser';
 import { join } from 'path';
@@ -130,40 +131,46 @@ async function bootstrap() {
     exclude: ['webhooks/stripe', 'webhooks/paypal', 'webhooks/mobile-money', 'uploads/(.*)'],
   });
 
-  // ---- Swagger / OpenAPI (désactivé en production) ----
+  // ---- Swagger / OpenAPI (développement uniquement, import dynamique) ----
+  // Dynamic import isolates @nestjs/swagger so a peer-dependency mismatch or
+  // missing package in the Docker image never crashes the production API.
   if (!isProduction) {
-    const swaggerConfig = new DocumentBuilder()
-      .setTitle('Hotel SETIFANA — API')
-      .setDescription(
-        'API REST complète pour la gestion hôtelière SETIFANA Conakry.\n\n' +
-        '**Auth** : JWT Bearer token ou cookie `access_token` (httpOnly).\n' +
-        'Utilisez `POST /api/auth/login` pour obtenir un token, puis cliquez sur **Authorize**.',
-      )
-      .setVersion('1.0.0')
-      .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'JWT')
-      .addCookieAuth('access_token', { type: 'apiKey', in: 'cookie', name: 'access_token' }, 'Cookie')
-      .addTag('auth', 'Authentification & profil utilisateur')
-      .addTag('bookings', 'Réservations (création, devis, suivi)')
-      .addTag('payments', 'Paiements (Stripe, PayPal, Mobile Money)')
-      .addTag('rooms', 'Chambres & disponibilités')
-      .addTag('admin', 'Administration (dashboard, KPIs)')
-      .addTag('documents', 'Devis & factures PDF')
-      .addTag('expenses', 'Dépenses hôtelières')
-      .addTag('contact', 'Messages de contact & newsletter')
-      .addTag('health', 'Santé de l\'API')
-      .build();
+    try {
+      const { SwaggerModule, DocumentBuilder } = await import('@nestjs/swagger');
+      const swaggerConfig = new DocumentBuilder()
+        .setTitle('Hotel SETIFANA — API')
+        .setDescription(
+          'API REST complète pour la gestion hôtelière SETIFANA Conakry.\n\n' +
+          '**Auth** : JWT Bearer token ou cookie `access_token` (httpOnly).\n' +
+          'Utilisez `POST /api/auth/login` pour obtenir un token, puis cliquez sur **Authorize**.',
+        )
+        .setVersion('1.0.0')
+        .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'JWT')
+        .addCookieAuth('access_token', { type: 'apiKey', in: 'cookie', name: 'access_token' }, 'Cookie')
+        .addTag('auth', 'Authentification & profil utilisateur')
+        .addTag('bookings', 'Réservations (création, devis, suivi)')
+        .addTag('payments', 'Paiements (Stripe, PayPal, Mobile Money)')
+        .addTag('rooms', 'Chambres & disponibilités')
+        .addTag('admin', 'Administration (dashboard, KPIs)')
+        .addTag('documents', 'Devis & factures PDF')
+        .addTag('expenses', 'Dépenses hôtelières')
+        .addTag('contact', 'Messages de contact & newsletter')
+        .addTag('health', 'Santé de l\'API')
+        .build();
 
-    const document = SwaggerModule.createDocument(app, swaggerConfig);
-    SwaggerModule.setup('api/docs', app, document, {
-      swaggerOptions: {
-        persistAuthorization: true,
-        tagsSorter: 'alpha',
-        operationsSorter: 'alpha',
-      },
-      customSiteTitle: 'SETIFANA API Docs',
-    });
-
-    logger.log(`Swagger UI available at http://localhost:${port}/api/docs`);
+      const document = SwaggerModule.createDocument(app, swaggerConfig);
+      SwaggerModule.setup('api/docs', app, document, {
+        swaggerOptions: {
+          persistAuthorization: true,
+          tagsSorter: 'alpha',
+          operationsSorter: 'alpha',
+        },
+        customSiteTitle: 'SETIFANA API Docs',
+      });
+      logger.log(`Swagger UI available at http://localhost:${port}/api/docs`);
+    } catch (e) {
+      logger.warn('Swagger setup skipped — @nestjs/swagger not available or incompatible');
+    }
   }
 
   // ---- Graceful shutdown ----

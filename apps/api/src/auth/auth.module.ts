@@ -6,7 +6,9 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt.strategy';
 import { EmailModule } from '../email/email.module';
-import { PrismaModule } from '../prisma/prisma.module';
+// NOTE: PrismaModule is @Global() — it is already registered in AppModule.
+//       Do NOT import it here again; that would cause a duplicate-provider
+//       registration and can crash the app on startup.
 
 @Module({
   imports: [
@@ -20,7 +22,6 @@ import { PrismaModule } from '../prisma/prisma.module';
       }),
     }),
     EmailModule,
-    PrismaModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy],

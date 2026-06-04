@@ -106,7 +106,12 @@ class ApiClient {
     }
 
     if (!res.ok) {
-      const error = await res.json().catch(() => ({ message: 'Erreur serveur' }));
+      // 502/503 = Render free-tier cold start or gateway restart.
+      // Surface the status code so the caller can display a friendly message.
+      if (res.status === 502 || res.status === 503) {
+        throw new Error(`502 — Serveur temporairement indisponible (démarrage en cours)`);
+      }
+      const error = await res.json().catch(() => ({ message: `Erreur ${res.status}` }));
       throw new Error(error.message || `Erreur ${res.status}`);
     }
 

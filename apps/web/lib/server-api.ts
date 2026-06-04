@@ -13,17 +13,36 @@
 
 const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4005';
 
-/** Generic server fetch with ISR cache and graceful fallback. */
-async function serverFetch<T>(path: string, revalidate: number, fallback: T): Promise<T> {
+/**
+ * Generic server fetch with ISR cache, graceful fallback, AND a hard timeout.
+ *
+ * The 8-second timeout prevents the Netlify build worker from hanging when
+ * Render is cold-starting during the build. After the deadline the function
+ * returns `fallback` so pages are still pre-rendered (just without live data).
+ * The ISR revalidation will refresh the pages once Render is warm.
+ */
+async function serverFetch<T>(
+  path: string,
+  revalidate: number,
+  fallback: T,
+  timeoutMs = 8_000,
+): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
   try {
     const res = await fetch(`${BASE}/api${path}`, {
+      signal: controller.signal,
       next: { revalidate },
       headers: { 'Content-Type': 'application/json' },
     });
     if (!res.ok) return fallback;
     return (await res.json()) as T;
   } catch {
+    // AbortError (timeout) or any network error → return fallback silently
     return fallback;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
